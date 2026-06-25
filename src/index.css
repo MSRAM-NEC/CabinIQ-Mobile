@@ -1,0 +1,412 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
+
+/* ─── CabinIQ Automotive Design System ─────────────────────────────────────
+   Design language: Clean / Professional / Safety-Critical
+   Inspired by: Android Automotive, Bosch HMI, Tesla Model 3/Y, Rivian
+   ──────────────────────────────────────────────────────────────────────── */
+
+@theme {
+  /* ── Color Palette ───────────────────────────────────────────────── */
+  --color-surface-0:   #0a0c0f;
+  --color-surface-1:   #0d111a;
+  --color-surface-2:   #111520;
+  --color-surface-3:   #1a1e2a;
+
+  --color-border-subtle:  rgba(255,255,255,0.05);
+  --color-border-default: rgba(255,255,255,0.09);
+  --color-border-strong:  rgba(255,255,255,0.16);
+
+  /* Status colors */
+  --color-status-ok:       #10b981;
+  --color-status-warn:     #f59e0b;
+  --color-status-critical: #ef4444;
+  --color-status-info:     #3b82f6;
+
+  /* Seat occupancy states */
+  --color-seat-empty:    #1a1e28;
+  --color-seat-adult:    #1d4ed8;
+  --color-seat-child:    #d97706;
+  --color-seat-warning:  #b45309;
+  --color-seat-critical: #b91c1c;
+
+  /* Accent */
+  --color-accent:       #0ea5e9;
+  --color-accent-dim:   #0284c7;
+  --color-accent-muted: rgba(14,165,233,0.12);
+
+  /* Typography */
+  --font-display: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-mono:    'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+
+  /* ── Animation Tokens ─────────────────────────────────────────────── */
+  --animate-fade-in:    fade-in  0.25s ease-out forwards;
+  --animate-slide-up:   slide-up 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  --animate-scale-in:   scale-in 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  --animate-pulse-warn: pulse-warn 2s ease-in-out infinite;
+  --animate-ping-dot:   ping-dot  1.4s ease-in-out infinite;
+  --animate-glow-pulse: glow-pulse 2.5s ease-in-out infinite;
+
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+  @keyframes slide-up {
+    from { transform: translateY(16px); opacity: 0; }
+    to   { transform: translateY(0);    opacity: 1; }
+  }
+  @keyframes scale-in {
+    from { transform: scale(0.94); opacity: 0; }
+    to   { transform: scale(1);    opacity: 1; }
+  }
+  @keyframes slide-in-bottom {
+    from { transform: translateY(24px); opacity: 0; }
+    to   { transform: translateY(0);    opacity: 1; }
+  }
+  @keyframes pulse-warn {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.55; }
+  }
+  @keyframes ping-dot {
+    0%, 100% { transform: scale(1);   opacity: 1; }
+    50%       { transform: scale(1.6); opacity: 0.4; }
+  }
+  @keyframes glow-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(14,165,233,0); }
+    50%       { box-shadow: 0 0 12px 2px rgba(14,165,233,0.18); }
+  }
+  @keyframes breathe {
+    0%, 100% { transform: scaleY(1.0); }
+    50%       { transform: scaleY(0.7); }
+  }
+  @keyframes slideInEvent {
+    from { transform: translateX(-8px); opacity: 0; }
+    to   { transform: translateX(0);    opacity: 1; }
+  }
+}
+
+/* ── Reset & Base ─────────────────────────────────────────────────────────── */
+html, body, #root {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background: #060810;
+  color: #f0f2f5;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── Scrollbars ──────────────────────────────────────────────────────────── */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #1e2430 transparent;
+}
+*::-webkit-scrollbar { width: 3px; height: 3px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb { background: #1e2430; border-radius: 4px; }
+*::-webkit-scrollbar-thumb:hover { background: #2a3040; }
+
+/* ── Card styles ──────────────────────────────────────────────────────────── */
+.card {
+  background: linear-gradient(135deg, #0d111a, #111520);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 16px;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.card-elevated {
+  background: linear-gradient(135deg, #111520, #151a28);
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 16px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.4);
+}
+.card-glass {
+  background: rgba(13,17,26,0.80);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 16px;
+}
+
+/* ── Status indicator dots ────────────────────────────────────────────────── */
+.status-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+.status-dot-ok       { background: #10b981; box-shadow: 0 0 6px rgba(16,185,129,0.5); }
+.status-dot-warn     { background: #f59e0b; animation: ping-dot 1.4s ease-in-out infinite; }
+.status-dot-critical { background: #ef4444; animation: ping-dot 1.0s ease-in-out infinite; }
+.status-dot-idle     { background: #374151; }
+
+/* ── Range input — base reset ─────────────────────────────────────────────── */
+/* Note: Phase 5 SettingsTab uses a custom overlay approach for colored tracks.
+   These styles remain for any other range inputs in the app. */
+input[type=range] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  background: rgba(255,255,255,0.08);
+  border-radius: 4px;
+  outline: none;
+  cursor: pointer;
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  background: #0ea5e9;
+  border: 2px solid #0a0c0f;
+  box-shadow: 0 0 0 3px rgba(14,165,233,0.25);
+  cursor: pointer;
+  transition: box-shadow 0.15s ease;
+}
+input[type=range]::-webkit-slider-thumb:hover {
+  box-shadow: 0 0 0 5px rgba(14,165,233,0.20);
+}
+input[type=range]::-moz-range-thumb {
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  background: #0ea5e9;
+  border: 2px solid #0a0c0f;
+  cursor: pointer;
+}
+
+/* ── Select element ──────────────────────────────────────────────────────── */
+select {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+/* ── Touch active feedback ───────────────────────────────────────────────── */
+.touch-active:active {
+  transform: scale(0.97);
+  transition: transform 0.1s ease;
+}
+
+/* ── Animations ──────────────────────────────────────────────────────────── */
+.breathe { animation: breathe 2s ease-in-out infinite; }
+.animate-slide-in-bottom { animation: slide-in-bottom 0.35s cubic-bezier(0.16,1,0.3,1) forwards; }
+
+@keyframes slideInEvent {
+  from { transform: translateX(-8px); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+
+/* ── Bottom nav gradient overlay ─────────────────────────────────────────── */
+.nav-gradient-top {
+  background: linear-gradient(to top, #060810 0%, transparent 100%);
+  height: 24px;
+  pointer-events: none;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Loading / Splash Screen
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.loading-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(ellipse at center, #060d1a 0%, #020408 100%);
+  transition: opacity 0.65s cubic-bezier(0.4, 0, 0.2, 1),
+              transform 0.65s cubic-bezier(0.4, 0, 0.2, 1),
+              visibility 0s 0.65s;
+  overflow: hidden;
+}
+
+.loading-screen.fade-out {
+  opacity: 0;
+  transform: scale(1.04);
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* Background grid */
+.loading-bg-grid {
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(14,165,233,0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(14,165,233,0.05) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(ellipse at center, rgba(0,0,0,0.8) 0%, transparent 68%);
+  -webkit-mask-image: radial-gradient(ellipse at center, rgba(0,0,0,0.8) 0%, transparent 68%);
+  animation: gridPulse 4s ease-in-out infinite;
+}
+
+@keyframes gridPulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}
+
+/* Centered content */
+.loading-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  z-index: 10;
+  animation: fadeInUp 0.9s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Radar Ring Container */
+.loading-radar-ring {
+  position: relative;
+  width: 260px;
+  height: 260px;
+  margin-bottom: 6px;
+}
+
+.radar-svg {
+  width: 100%;
+  height: 100%;
+}
+
+.radar-ring-outer,
+.radar-ring-mid,
+.radar-ring-inner {
+  fill: none;
+  stroke-width: 1;
+}
+
+.radar-ring-outer {
+  stroke: rgba(14,165,233,0.18);
+  stroke-dasharray: 5 10;
+  animation: radarRingSpin 22s linear infinite;
+  transform-origin: center;
+}
+
+.radar-ring-mid {
+  stroke: rgba(14,165,233,0.13);
+  stroke-dasharray: 3 7;
+  animation: radarRingSpin 16s linear infinite reverse;
+  transform-origin: center;
+}
+
+.radar-ring-inner {
+  stroke: rgba(14,165,233,0.09);
+  stroke-dasharray: 2 5;
+  animation: radarRingSpin 10s linear infinite;
+  transform-origin: center;
+}
+
+@keyframes radarRingSpin {
+  to { transform: rotate(360deg); }
+}
+
+.radar-crosshair {
+  stroke: rgba(14,165,233,0.06);
+  stroke-width: 0.5;
+}
+
+.radar-sweep {
+  stroke: rgba(14,165,233,0.70);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  transform-origin: 100px 100px;
+  animation: radarSweep 2s linear infinite;
+  filter: drop-shadow(0 0 8px rgba(14,165,233,0.50));
+}
+
+/* Radar sweep trailing gradient */
+.radar-sweep-trail {
+  fill: url(#sweepGrad);
+  transform-origin: 100px 100px;
+  animation: radarSweep 2s linear infinite;
+  opacity: 0.15;
+}
+
+@keyframes radarSweep {
+  to { transform: rotate(360deg); }
+}
+
+/* Logo center */
+.loading-logo-center {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: 168px; height: 168px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(6,8,16,0.98) 60%, rgba(6,8,16,0.85) 100%);
+  border: 1px solid rgba(14,165,233,0.18);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow:
+    0 0 0 1px rgba(14,165,233,0.06),
+    0 0 32px rgba(14,165,233,0.12),
+    inset 0 0 20px rgba(14,165,233,0.04);
+}
+
+.loading-logo-img {
+  width: 132px; height: 132px;
+  object-fit: contain;
+  border-radius: 50%;
+  filter: drop-shadow(0 0 10px rgba(14,165,233,0.20));
+}
+
+/* Title */
+.loading-title {
+  font-size: 30px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  margin-top: 2px;
+  line-height: 1.15;
+}
+
+.loading-subtitle {
+  font-size: 10px;
+  color: #7a8fa8;
+  font-weight: 500;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-top: -4px;
+}
+
+/* Progress Bar */
+.loading-progress-track {
+  width: 210px;
+  height: 2px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 9999px;
+  overflow: hidden;
+  margin-top: 6px;
+}
+
+.loading-progress-bar {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #0284c7 0%, #38bdf8 50%, #0ea5e9 100%);
+  border-radius: 9999px;
+  transition: width 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 0 10px rgba(14,165,233,0.45);
+}
+
+/* Status text */
+.loading-status {
+  font-size: 10px;
+  color: #556070;
+  font-weight: 500;
+  letter-spacing: 0.2px;
+  min-height: 14px;
+  transition: opacity 0.3s;
+}
+
+@keyframes shrinkWidth {
+  from { width: 100%; }
+  to   { width: 0%; }
+}

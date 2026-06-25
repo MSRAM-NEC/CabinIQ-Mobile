@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- USB device filter for CabinIQ Mobile.
+     Matches known TI AWR6843 radar adapter VID/PID pairs.
+     When any of these devices are plugged in via USB OTG,
+     Android will offer to launch CabinIQ Mobile automatically. -->
+<resources>
+    <!-- TI XDS110 Debug Probe (primary AWR6843 interface) -->
+    <usb-device vendor-id="1105" product-id="48883" />
+    <!-- TI XDS110 Auxiliary Port -->
+    <usb-device vendor-id="1105" product-id="48884" />
+    <!-- Silicon Labs CP210x USB-UART Bridge -->
+    <usb-device vendor-id="4292" product-id="60000" />
+    <!-- Silicon Labs CP2105 Dual USB to UART Bridge Controller -->
+    <usb-device vendor-id="4292" product-id="60016" />
+    <!-- FTDI FT232R USB-UART Bridge -->
+    <usb-device vendor-id="1027" product-id="24577" />
+    <!-- FTDI FT2232 Dual USB-UART -->
+    <usb-device vendor-id="1027" product-id="24592" />
+</resources>

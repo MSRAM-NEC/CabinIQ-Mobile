@@ -1,0 +1,6 @@
+{
+  "name": "CabinIQ Mobile",
+  "description": "Interactive Android mobile application for AWR6843 In-Cabin Radar Occupancy Detection with real-time 3D point cloud, 2D seat status, and vital signs monitoring.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}
