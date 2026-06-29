@@ -54,13 +54,14 @@ interface Radar3DTabProps {
   points: Point3D[];
   zoneStates: { [zoneId: number]: ZoneState };
   zones: ZoneDefinition[];
+  darkMode?: boolean;
 }
 
 // ── Camera lerp state ────────────────────────────────────────────────────────
 
 interface CameraTarget { yaw: number; pitch: number; zoom: number; }
 
-export default function Radar3DTab({ points, zoneStates, zones }: Radar3DTabProps) {
+export default function Radar3DTab({ points, zoneStates, zones, darkMode = true }: Radar3DTabProps) {
   const canvasRef    = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
@@ -235,9 +236,15 @@ export default function Radar3DTab({ points, zoneStates, zones }: Radar3DTabProp
     // ── Background radial gradient ─────────────────────────────────────
     ctx.clearRect(0, 0, W, H);
     const bg = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(W, H) * 0.7);
-    bg.addColorStop(0,   'rgba(14,22,38,0.95)');
-    bg.addColorStop(0.6, 'rgba(8,11,18,0.98)');
-    bg.addColorStop(1,   'rgba(3,5,10,1)');
+    if (darkMode) {
+      bg.addColorStop(0,   'rgba(14,22,38,0.95)');
+      bg.addColorStop(0.6, 'rgba(8,11,18,0.98)');
+      bg.addColorStop(1,   'rgba(3,5,10,1)');
+    } else {
+      bg.addColorStop(0,   '#ffffff');
+      bg.addColorStop(0.6, '#f1f5f9');
+      bg.addColorStop(1,   '#e2e8f0');
+    }
     ctx.fillStyle = bg;
     ctx.fillRect(0, 0, W, H);
 
@@ -263,7 +270,9 @@ export default function Radar3DTab({ points, zoneStates, zones }: Radar3DTabProp
     for (let g = -gridRange; g <= gridRange; g += gridStep) {
       const distFromCenter = Math.abs(g) / gridRange;
       const alpha = 0.05 + (1 - distFromCenter) * 0.06;
-      ctx.strokeStyle = `rgba(14,165,233,${alpha.toFixed(3)})`;
+      ctx.strokeStyle = darkMode
+        ? `rgba(14,165,233,${alpha.toFixed(3)})`
+        : `rgba(2,132,199,${(alpha * 1.8).toFixed(3)})`;
       ctx.lineWidth = 0.5;
 
       ctx.beginPath();
@@ -291,7 +300,8 @@ export default function Radar3DTab({ points, zoneStates, zones }: Radar3DTabProp
       ctx.strokeStyle = color; ctx.fillStyle = color;
       ctx.beginPath(); ctx.moveTo(o.x, o.y); ctx.lineTo(a.x, a.y); ctx.stroke();
       ctx.font = 'bold 9px Inter, monospace'; ctx.textAlign = 'center';
-      ctx.shadowColor = 'rgba(0,0,0,0.8)'; ctx.shadowBlur = 4;
+      ctx.shadowColor = darkMode ? 'rgba(0,0,0,0.8)' : 'rgba(255,255,255,0.9)';
+      ctx.shadowBlur = 4;
       ctx.fillText(label, a.x, a.y - 6);
       ctx.shadowBlur = 0;
     };
@@ -325,8 +335,8 @@ export default function Radar3DTab({ points, zoneStates, zones }: Radar3DTabProp
         for (let i = 1; i < idx.length; i++) ctx.lineTo(verts[idx[i]].x, verts[idx[i]].y);
         ctx.closePath();
         ctx.fillStyle = isOcc
-          ? `rgba(${theme.rgb},${(0.12 * pulseAlpha).toFixed(3)})`
-          : `rgba(${theme.rgb},0.04)`;
+          ? `rgba(${theme.rgb},${((darkMode ? 0.12 : 0.16) * pulseAlpha).toFixed(3)})`
+          : `rgba(${theme.rgb},${darkMode ? 0.04 : 0.06})`;
         ctx.fill();
       };
 
@@ -359,13 +369,13 @@ export default function Radar3DTab({ points, zoneStates, zones }: Radar3DTabProp
 
       const theme   = matchedZoneId !== null ? getZoneTheme(matchedZoneId) : null;
       const snrClr  = getSnrColor(snr);
-      const dotColor = theme ? theme.light : snrClr.fill;
+      const dotColor = theme ? (darkMode ? theme.light : theme.primary) : snrClr.fill;
       const glowRgb  = theme ? theme.rgb   : '';
 
       // Outer soft halo
       const grad = ctx.createRadialGradient(proj.x, proj.y, 0, proj.x, proj.y, r + 4);
       if (theme) {
-        grad.addColorStop(0, `rgba(${theme.rgb},${(0.5 * depthOpacity).toFixed(2)})`);
+        grad.addColorStop(0, `rgba(${theme.rgb},${((darkMode ? 0.5 : 0.3) * depthOpacity).toFixed(2)})`);
         grad.addColorStop(1, `rgba(${theme.rgb},0)`);
       } else {
         grad.addColorStop(0, snrClr.glow);
@@ -403,8 +413,8 @@ export default function Radar3DTab({ points, zoneStates, zones }: Radar3DTabProp
       ];
 
       ctx.strokeStyle = isOcc
-        ? `rgba(${theme.rgb},${(0.85 * pulseAlpha).toFixed(2)})`
-        : `rgba(${theme.rgb},0.25)`;
+        ? `rgba(${theme.rgb},${((darkMode ? 0.85 : 0.95) * pulseAlpha).toFixed(2)})`
+        : `rgba(${theme.rgb},${darkMode ? 0.25 : 0.4})`;
       ctx.lineWidth = isOcc ? 1.8 : 0.7;
 
       // Bottom face
@@ -436,16 +446,21 @@ export default function Radar3DTab({ points, zoneStates, zones }: Radar3DTabProp
       const labelAlpha = isOcc ? 1 : 0.5;
       ctx.font = isOcc ? 'bold 9px Inter, monospace' : '600 8px Inter, monospace';
       ctx.textAlign = 'center';
-      ctx.shadowColor = 'rgba(0,0,0,0.95)'; ctx.shadowBlur = 6;
+      ctx.shadowColor = darkMode ? 'rgba(0,0,0,0.95)' : 'rgba(255,255,255,0.95)';
+      ctx.shadowBlur = darkMode ? 6 : 3;
 
       // Label pill background
       const tw = ctx.measureText(labelText).width + 8;
-      ctx.fillStyle = `rgba(${theme.rgb},${(0.2 * labelAlpha).toFixed(2)})`;
+      ctx.fillStyle = darkMode 
+        ? `rgba(${theme.rgb},${(0.2 * labelAlpha).toFixed(2)})`
+        : `rgba(${theme.rgb},${(0.12 * labelAlpha).toFixed(2)})`;
       ctx.beginPath();
       ctx.roundRect(mid.x - tw / 2, mid.y - 11, tw, 13, 4);
       ctx.fill();
 
-      ctx.fillStyle = isOcc ? theme.light : `rgba(${theme.rgb},0.6)`;
+      ctx.fillStyle = isOcc 
+        ? (darkMode ? theme.light : theme.primary) 
+        : (darkMode ? `rgba(${theme.rgb},0.6)` : `rgba(${theme.rgb},0.8)`);
       ctx.fillText(labelText, mid.x, mid.y);
       ctx.shadowBlur = 0;
 
@@ -454,12 +469,12 @@ export default function Radar3DTab({ points, zoneStates, zones }: Radar3DTabProp
         const cls = st?.classification?.toUpperCase() ?? '';
         const confPct = Math.round((st?.confidence ?? 0) * 100);
         ctx.font = '600 7.5px Inter, monospace';
-        ctx.fillStyle = `rgba(${theme.rgb},0.7)`;
+        ctx.fillStyle = darkMode ? `rgba(${theme.rgb},0.7)` : theme.primary;
         ctx.fillText(`${cls} ${confPct}%`, mid.x, mid.y + 12);
       }
     });
 
-  }, [points, zoneStates, zones, yaw, pitch, zoom, pulseTick]);
+  }, [points, zoneStates, zones, yaw, pitch, zoom, pulseTick, darkMode]);
 
   // ── Computed Stats ───────────────────────────────────────────────────────
 
@@ -477,7 +492,7 @@ export default function Radar3DTab({ points, zoneStates, zones }: Radar3DTabProp
   // ── Render ───────────────────────────────────────────────────────────────
 
   return (
-    <div ref={containerRef} className="flex-1 relative w-full h-full overflow-hidden bg-[#03050a]">
+    <div ref={containerRef} className={`flex-1 relative w-full h-full overflow-hidden ${darkMode ? 'bg-[#03050a]' : 'bg-[#f8fafc]'}`}>
 
       {/* Full-bleed canvas */}
       <canvas
@@ -491,48 +506,48 @@ export default function Radar3DTab({ points, zoneStates, zones }: Radar3DTabProp
 
       {/* ── Stats Overlay (top-left) ─────────────────────────────────── */}
       <div className="absolute top-3 left-3 pointer-events-none select-none">
-        <div className="bg-[#080c14]/85 backdrop-blur-md border border-[rgba(14,165,233,0.15)] rounded-xl px-3 py-2.5 space-y-1 shadow-xl">
+        <div className={`backdrop-blur-md border rounded-xl px-3 py-2.5 space-y-1 shadow-xl ${darkMode ? 'bg-[#080c14]/85 border-[rgba(14,165,233,0.15)]' : 'bg-white/90 border-[rgba(14,165,233,0.25)]'}`}>
           <div className="flex items-center gap-1.5 mb-1.5">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
             <span className="text-[9px] font-semibold text-neutral-400 uppercase tracking-wider">Point Cloud</span>
           </div>
-          <div className="text-[18px] font-mono font-bold text-white leading-none">
+          <div className={`text-[18px] font-mono font-bold leading-none ${darkMode ? 'text-white' : 'text-neutral-900'}`}>
             {points.length}
             <span className="text-[10px] text-neutral-500 font-normal ml-1">pts</span>
           </div>
           <div className="grid grid-cols-2 gap-x-5 gap-y-0.5 mt-1.5">
             <span className="text-[9px] text-neutral-500">FPS</span>
-            <span className="text-[9px] font-mono font-semibold text-neutral-200 text-right">{liveFps}</span>
+            <span className={`text-[9px] font-mono font-semibold text-right ${darkMode ? 'text-neutral-200' : 'text-neutral-800'}`}>{liveFps}</span>
             <span className="text-[9px] text-neutral-500">Avg SNR</span>
-            <span className="text-[9px] font-mono font-semibold text-neutral-200 text-right">{avgSnr} dB</span>
+            <span className={`text-[9px] font-mono font-semibold text-right ${darkMode ? 'text-neutral-200' : 'text-neutral-800'}`}>{avgSnr} dB</span>
             <span className="text-[9px] text-neutral-500">Occupied</span>
-            <span className="text-[9px] font-mono font-semibold text-neutral-200 text-right">{occupiedCount}/{totalZones}</span>
+            <span className={`text-[9px] font-mono font-semibold text-right ${darkMode ? 'text-neutral-200' : 'text-neutral-800'}`}>{occupiedCount}/{totalZones}</span>
           </div>
         </div>
       </div>
 
       {/* ── Camera Presets (top-right) ──────────────────────────────── */}
       <div className="absolute top-3 right-3 flex flex-col gap-2 z-10">
-        <CamButton label="Reset" onClick={() => setPreset(-0.55, 0.40, 130)}>
+        <CamButton label="Reset" darkMode={darkMode} onClick={() => setPreset(-0.55, 0.40, 130)}>
           <RotateCcw className="w-4 h-4" />
         </CamButton>
-        <CamButton label="ISO" onClick={() => setPreset(-0.60, 0.50, 130)}>
+        <CamButton label="ISO" darkMode={darkMode} onClick={() => setPreset(-0.60, 0.50, 130)}>
           <span className="text-[9px] font-bold">ISO</span>
         </CamButton>
-        <CamButton label="Top" onClick={() => setPreset(0, Math.PI / 2 - 0.06, 150)}>
+        <CamButton label="Top" darkMode={darkMode} onClick={() => setPreset(0, Math.PI / 2 - 0.06, 150)}>
           <span className="text-[9px] font-bold">TOP</span>
         </CamButton>
-        <CamButton label="Side" onClick={() => setPreset(Math.PI / 2, 0.15, 140)}>
+        <CamButton label="Side" darkMode={darkMode} onClick={() => setPreset(Math.PI / 2, 0.15, 140)}>
           <span className="text-[9px] font-bold">SIDE</span>
         </CamButton>
       </div>
 
       {/* ── Zoom Controls (bottom-right) ─────────────────────────────── */}
       <div className="absolute bottom-4 right-3 flex flex-col gap-2 z-10">
-        <CamButton label="Zoom In" onClick={() => { targetRef.current.zoom = Math.min(320, targetRef.current.zoom + 22); }}>
+        <CamButton label="Zoom In" darkMode={darkMode} onClick={() => { targetRef.current.zoom = Math.min(320, targetRef.current.zoom + 22); }}>
           <ZoomIn className="w-4 h-4" />
         </CamButton>
-        <CamButton label="Zoom Out" onClick={() => { targetRef.current.zoom = Math.max(60, targetRef.current.zoom - 22); }}>
+        <CamButton label="Zoom Out" darkMode={darkMode} onClick={() => { targetRef.current.zoom = Math.max(60, targetRef.current.zoom - 22); }}>
           <ZoomOut className="w-4 h-4" />
         </CamButton>
       </div>
@@ -561,7 +576,7 @@ export default function Radar3DTab({ points, zoneStates, zones }: Radar3DTabProp
 
       {/* ── SNR Color Key (center-bottom) ────────────────────────────── */}
       <div className="absolute bottom-4 left-1/2 -translate-x-1/2 pointer-events-none select-none">
-        <div className="flex items-center gap-1.5 bg-[#080c14]/70 backdrop-blur-sm rounded-lg px-2.5 py-1.5 border border-[rgba(255,255,255,0.06)]">
+        <div className={`flex items-center gap-1.5 backdrop-blur-sm rounded-lg px-2.5 py-1.5 border ${darkMode ? 'bg-[#080c14]/70 border-[rgba(255,255,255,0.06)]' : 'bg-white/80 border-[rgba(0,0,0,0.10)]'}`}>
           <div className="flex items-center gap-0.5">
             <span className="w-2 h-2 rounded-full bg-[#6b7280]" />
             <span className="text-[8px] text-neutral-600">Low</span>
@@ -589,14 +604,14 @@ export default function Radar3DTab({ points, zoneStates, zones }: Radar3DTabProp
 
 // ── Minimal Camera Button ────────────────────────────────────────────────────
 
-function CamButton({ children, onClick, label }: {
-  children: React.ReactNode; onClick: () => void; label: string;
+function CamButton({ children, onClick, label, darkMode = true }: {
+  children: React.ReactNode; onClick: () => void; label: string; darkMode?: boolean;
 }) {
   return (
     <button
       onClick={onClick}
       aria-label={label}
-      className="w-10 h-10 flex items-center justify-center bg-[#0d111a]/90 backdrop-blur-md border border-[rgba(14,165,233,0.15)] rounded-xl text-neutral-400 hover:text-sky-300 hover:border-sky-500/30 active:scale-90 transition-all shadow-lg"
+      className={`w-10 h-10 flex items-center justify-center backdrop-blur-md border rounded-xl hover:text-sky-300 hover:border-sky-500/30 active:scale-90 transition-all shadow-lg ${darkMode ? 'bg-[#0d111a]/90 border-[rgba(14,165,233,0.15)] text-neutral-400' : 'bg-white/90 border-[rgba(14,165,233,0.25)] text-neutral-600'}`}
     >
       {children}
     </button>

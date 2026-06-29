@@ -14,8 +14,8 @@
  */
 
 import React, { useEffect, useState, useRef } from 'react';
-import { ZoneState, VitalSigns, DriveMode, ZoneDefinition } from '../types';
-import { Heart, HeartPulse, Activity, Target, User, Baby } from 'lucide-react';
+import { ZoneState, VitalSigns, DriveMode, ZoneDefinition, ConnectionDiagnostics, DEFAULT_DIAGNOSTICS, TransportType } from '../types';
+import { Heart, HeartPulse, Activity, Target, User, Baby, Wifi, Usb, Cpu, ShieldCheck } from 'lucide-react';
 
 interface DashboardTabProps {
   zones: ZoneDefinition[];
@@ -24,23 +24,32 @@ interface DashboardTabProps {
   driveMode: DriveMode;
   onTriggerCalibration: () => void;
   isCalibrating: boolean;
+  // System health card props (optional, graceful degradation if not passed)
+  connectionStatus?: string;
+  transportType?: TransportType;
+  isSimulationMode?: boolean;
+  configName?: string;
+  sensorTiltDeg?: number;
+  diagnostics?: ConnectionDiagnostics;
+  darkMode?: boolean;
 }
 
-// ── Seat Card ────────────────────────────────────────────────────────────────
+// ── Premium Seat Card ────────────────────────────────────────────────────────
 
-function SeatCard({ state, label, isDriver = false, animDelay = 0 }: {
+function SeatCard({ state, label, isDriver = false, animDelay = 0, darkMode = true }: {
   state: ZoneState;
   label: string;
   isDriver?: boolean;
   animDelay?: number;
   key?: React.Key;
+  darkMode?: boolean;
 }) {
   const isOcc   = state.occupied;
   const isChild = state.classification === 'child';
   const conf    = Math.round(state.confidence * 100);
   const [appeared, setAppeared] = useState(false);
-  const [prevOcc, setPrevOcc] = useState(isOcc);
-  const [flash, setFlash] = useState(false);
+  const [prevOcc, setPrevOcc]   = useState(isOcc);
+  const [flash, setFlash]       = useState(false);
 
   useEffect(() => {
     const t = setTimeout(() => setAppeared(true), animDelay);
@@ -50,92 +59,164 @@ function SeatCard({ state, label, isDriver = false, animDelay = 0 }: {
   useEffect(() => {
     if (prevOcc !== isOcc) {
       setFlash(true);
-      const t = setTimeout(() => setFlash(false), 600);
+      const t = setTimeout(() => setFlash(false), 700);
       setPrevOcc(isOcc);
       return () => clearTimeout(t);
     }
   }, [isOcc, prevOcc]);
 
-  // Color scheme
+  // Premium color tokens
   const scheme = isOcc
     ? isChild
-      ? { bg: 'linear-gradient(145deg,#451a03,#78350f)', border: '#d97706', icon: '#fbbf24', text: '#fef3c7', glow: 'rgba(217,119,6,0.35)' }
-      : { bg: 'linear-gradient(145deg,#0d1b3e,#1e3a8a)', border: '#3b82f6', icon: '#60a5fa', text: '#dbeafe', glow: 'rgba(59,130,246,0.30)' }
-    : { bg: 'linear-gradient(145deg,#13151c,#1a1d24)', border: 'rgba(255,255,255,0.08)', icon: '#374151', text: '#4b5563', glow: 'transparent' };
+      ? {
+          bg:       darkMode ? 'linear-gradient(160deg,#2d1500 0%,#431f00 50%,#2d1500 100%)' : 'linear-gradient(160deg,#fffbeb 0%,#fef3c7 50%,#fffbeb 100%)',
+          glassTop: darkMode ? 'rgba(251,191,36,0.06)' : 'rgba(0,0,0,0.01)',
+          border:   '#d97706',
+          glow:     darkMode ? 'rgba(217,119,6,0.55)' : 'rgba(217,119,6,0.25)',
+          arcColor: '#f59e0b',
+          icon:     darkMode ? '#fbbf24' : '#b45309',
+          text:     darkMode ? '#fef3c7' : '#78350f',
+          badge:    'linear-gradient(135deg,#92400e,#d97706)',
+        }
+      : {
+          bg:       darkMode ? 'linear-gradient(160deg,#060f2a 0%,#0f2055 50%,#060f2a 100%)' : 'linear-gradient(160deg,#eff6ff 0%,#dbeafe 50%,#eff6ff 100%)',
+          glassTop: darkMode ? 'rgba(96,165,250,0.07)' : 'rgba(0,0,0,0.01)',
+          border:   '#3b82f6',
+          glow:     darkMode ? 'rgba(59,130,246,0.55)' : 'rgba(59,130,246,0.25)',
+          arcColor: '#60a5fa',
+          icon:     darkMode ? '#93c5fd' : '#1d4ed8',
+          text:     darkMode ? '#bfdbfe' : '#1e3a8a',
+          badge:    'linear-gradient(135deg,#1e40af,#3b82f6)',
+        }
+    : {
+        bg:       darkMode ? 'linear-gradient(160deg,#0e1018 0%,#141720 50%,#0e1018 100%)' : 'linear-gradient(160deg,#f8fafc 0%,#f1f5f9 50%,#e2e8f0 100%)',
+        glassTop: darkMode ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.01)',
+        border:   darkMode ? 'rgba(255,255,255,0.09)' : 'rgba(0,0,0,0.08)',
+        glow:     'transparent',
+        arcColor: darkMode ? '#1f2937' : '#cbd5e1',
+        icon:     darkMode ? '#374151' : '#94a3b8',
+        text:     darkMode ? '#4b5563' : '#64748b',
+        badge:    '',
+      };
+
+  // SVG confidence arc (circle stroke)
+  const R = 28;
+  const C = 2 * Math.PI * R;
+  const arcLen = (conf / 100) * C;
 
   return (
     <div
-      className="flex flex-col items-center gap-1.5 transition-all duration-500"
-      style={{ opacity: appeared ? 1 : 0, transform: appeared ? 'translateY(0)' : 'translateY(12px)' }}
+      className="flex flex-col items-center gap-2 transition-all duration-500"
+      style={{ opacity: appeared ? 1 : 0, transform: appeared ? 'translateY(0)' : 'translateY(16px)' }}
     >
-      {/* Seat card body */}
+      {/* ── Card body ── */}
       <div
-        className="relative w-[68px] h-[76px] rounded-2xl flex flex-col items-center justify-center transition-all duration-400"
+        className="relative rounded-2xl flex flex-col items-center justify-center"
         style={{
+          width: 76, height: 88,
           background: scheme.bg,
           border: `1.5px solid ${scheme.border}`,
           boxShadow: flash
-            ? `0 0 20px ${scheme.glow}, 0 0 8px ${scheme.glow}`
+            ? `0 0 28px ${scheme.glow}, 0 0 10px ${scheme.glow}, inset 0 1px 0 rgba(255,255,255,0.06)`
             : isOcc
-            ? `0 0 10px ${scheme.glow}`
-            : 'none',
-          transform: flash ? 'scale(1.06)' : 'scale(1)',
+            ? `0 0 16px ${scheme.glow}, inset 0 1px 0 rgba(255,255,255,0.06)`
+            : 'inset 0 1px 0 rgba(255,255,255,0.04)',
+          transform: flash ? 'scale(1.08)' : 'scale(1)',
+          transition: 'all 0.45s cubic-bezier(0.16,1,0.3,1)',
         }}
       >
-        {/* Classification badge */}
+        {/* Glass sheen overlay */}
+        <div
+          className="absolute inset-0 rounded-2xl pointer-events-none"
+          style={{
+            background: `linear-gradient(160deg, ${scheme.glassTop} 0%, transparent 55%)`,
+          }}
+        />
+
+        {/* Confidence arc ring */}
+        <svg
+          className="absolute inset-0 w-full h-full pointer-events-none"
+          viewBox="0 0 76 88"
+          style={{ opacity: isOcc ? 0.9 : 0.3 }}
+        >
+          {/* Track */}
+          <circle cx="38" cy="44" r={R} fill="none" stroke="rgba(255,255,255,0.04)" strokeWidth="2" />
+          {/* Fill arc */}
+          <circle
+            cx="38" cy="44" r={R}
+            fill="none"
+            stroke={scheme.arcColor}
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeDasharray={`${arcLen} ${C}`}
+            transform="rotate(-90 38 44)"
+            style={{ transition: 'stroke-dasharray 0.8s cubic-bezier(0.16,1,0.3,1)', filter: `drop-shadow(0 0 3px ${scheme.arcColor})` }}
+          />
+        </svg>
+
+        {/* Classification badge (top-right) */}
         {isOcc && (
-          <span
-            className="absolute -top-1 -right-1 flex items-center gap-0.5 px-1.5 py-0.5 rounded-lg text-[7px] font-bold uppercase tracking-wide text-white"
-            style={{ background: isChild ? '#d97706' : '#2563eb' }}
+          <div
+            className="absolute -top-1.5 -right-1.5 flex items-center gap-0.5 px-1.5 py-0.5 rounded-lg text-[7px] font-extrabold uppercase tracking-wide text-white z-10"
+            style={{ background: scheme.badge, boxShadow: `0 2px 8px ${scheme.glow}` }}
           >
             {isChild ? <Baby className="w-2 h-2" /> : <User className="w-2 h-2" />}
             {isChild ? 'Child' : 'Adult'}
-          </span>
+          </div>
         )}
 
-        {/* Icon */}
-        <div className="mb-1" style={{ color: scheme.icon }}>
-          {isOcc
-            ? isChild
-              ? <Baby className="w-6 h-6" />
-              : <User className="w-6 h-6" />
-            : <div className="w-6 h-6 rounded-lg border-2 border-dashed border-[#374151]" />
-          }
-        </div>
+        {/* Driver crown */}
+        {isDriver && (
+          <div className="absolute -top-1.5 -left-1.5 w-4 h-4 flex items-center justify-center z-10">
+            <span className="text-[10px]">👑</span>
+          </div>
+        )}
 
-        {/* Confidence bar */}
-        <div className="w-10 h-[3px] bg-[rgba(255,255,255,0.06)] rounded-full overflow-hidden">
+        {/* Center icon */}
+        <div className="flex flex-col items-center gap-1.5 relative z-10">
           <div
-            className="h-full rounded-full transition-all duration-700"
+            className="w-9 h-9 rounded-full flex items-center justify-center transition-all duration-300"
             style={{
-              width: `${conf}%`,
-              background: isOcc
-                ? isChild ? 'linear-gradient(90deg,#f59e0b,#fbbf24)' : 'linear-gradient(90deg,#3b82f6,#60a5fa)'
-                : '#374151',
+              background: isOcc ? `rgba(${isChild ? '217,119,6' : '59,130,246'},0.18)` : 'rgba(255,255,255,0.04)',
+              border: `1.5px solid ${isOcc ? scheme.border : 'rgba(255,255,255,0.07)'}`,
             }}
-          />
-        </div>
+          >
+            {isOcc
+              ? isChild
+                ? <Baby className="w-5 h-5" style={{ color: scheme.icon }} />
+                : <User className="w-5 h-5" style={{ color: scheme.icon }} />
+              : <div className="w-4 h-4 rounded-full border-[1.5px] border-dashed border-[#374151]" />
+            }
+          </div>
 
-        {/* Confidence % */}
-        <span className="text-[8px] font-mono font-semibold mt-0.5" style={{ color: scheme.text }}>
-          {conf}%
-        </span>
+          {/* Confidence % */}
+          <span
+            className="text-[9px] font-mono font-bold leading-none"
+            style={{ color: isOcc ? scheme.icon : '#374151' }}
+          >
+            {conf}%
+          </span>
+        </div>
       </div>
 
       {/* Label */}
-      <span className="text-[10px] font-semibold tracking-wide text-center leading-tight" style={{ color: scheme.text }}>
-        {label}
-      </span>
-
-      {/* Driver indicator */}
-      {isDriver && (
-        <span className="text-[7px] font-bold text-neutral-600 uppercase tracking-widest -mt-1">
-          ● DRIVER
+      <div className="flex flex-col items-center gap-0.5">
+        <span
+          className="text-[9.5px] font-semibold tracking-wide text-center leading-tight"
+          style={{ color: isOcc ? scheme.text : '#4b5563' }}
+        >
+          {label}
         </span>
-      )}
+        {isDriver && (
+          <span className="text-[7px] font-bold text-amber-600/70 uppercase tracking-widest">
+            Driver
+          </span>
+        )}
+      </div>
     </div>
   );
 }
+
 
 // ── Car Silhouette SVG (Top-down view) ───────────────────────────────────────
 
@@ -265,11 +346,124 @@ function EcgWave({ active, rate, phase }: { active: boolean; rate: number; phase
   );
 }
 
+// ── System Health Card ───────────────────────────────────────────────────────
+
+function SystemHealthCard({
+  connectionStatus = 'disconnected',
+  transportType = 'serial',
+  isSimulationMode = false,
+  configName = '—',
+  sensorTiltDeg = 0,
+  diagnostics = DEFAULT_DIAGNOSTICS,
+  darkMode = true,
+}: {
+  connectionStatus?: string;
+  transportType?: TransportType;
+  isSimulationMode?: boolean;
+  configName?: string;
+  sensorTiltDeg?: number;
+  diagnostics?: ConnectionDiagnostics;
+  darkMode?: boolean;
+}) {
+  const isConnected  = connectionStatus === 'connected';
+  const totalErrors  = diagnostics.parseErrors + diagnostics.crcErrors;
+  const healthStatus = !isConnected ? 'offline'
+    : totalErrors > 5  ? 'warn'
+    : 'ok';
+
+  const statusColor  = healthStatus === 'ok' ? '#10b981'
+    : healthStatus === 'warn' ? '#f59e0b'
+    : '#4b5563';
+  const statusLabel  = healthStatus === 'ok' ? 'Healthy'
+    : healthStatus === 'warn' ? 'Errors Detected'
+    : 'Offline';
+
+  const transportIcon = isSimulationMode ? Cpu
+    : transportType === 'network' ? Wifi
+    : Usb;
+  const TransportIcon = transportIcon;
+  const transportLabel = isSimulationMode ? 'SIM' : transportType === 'network' ? 'NET' : 'USB';
+  const transportColor = isSimulationMode ? '#8b5cf6' : transportType === 'network' ? '#0ea5e9' : '#10b981';
+
+  return (
+    <div
+      className="rounded-2xl px-3.5 py-3 flex items-center justify-between gap-2"
+      style={{
+        background: darkMode ? 'linear-gradient(135deg,#0a0e18,#0d1220)' : 'linear-gradient(135deg,#ffffff,#f1f5f9)',
+        border: darkMode ? '1px solid rgba(255,255,255,0.07)' : '1px solid rgba(0,0,0,0.08)'
+      }}
+    >
+      {/* Health status dot + label */}
+      <div className="flex items-center gap-2 flex-shrink-0">
+        <div className="relative">
+          <div className="w-2.5 h-2.5 rounded-full" style={{ background: statusColor, boxShadow: `0 0 6px ${statusColor}99` }} />
+          {healthStatus === 'ok' && (
+            <div
+              className="absolute inset-0 rounded-full"
+              style={{ background: statusColor, animation: 'healthPing 2s ease-out infinite' }}
+            />
+          )}
+        </div>
+        <div>
+          <p className="text-[10px] font-bold text-neutral-200 leading-none">{statusLabel}</p>
+          <p className="text-[8px] text-neutral-600 mt-0.5 leading-none">System health</p>
+        </div>
+      </div>
+
+      {/* Divider */}
+      <div className="w-px h-7 bg-[rgba(255,255,255,0.06)]" />
+
+      {/* Transport badge */}
+      <div className="flex items-center gap-1.5">
+        <TransportIcon className="w-3 h-3" style={{ color: transportColor }} />
+        <span className="text-[9px] font-bold" style={{ color: transportColor }}>{transportLabel}</span>
+      </div>
+
+      {/* Divider */}
+      <div className="w-px h-7 bg-[rgba(255,255,255,0.06)]" />
+
+      {/* Tilt */}
+      <div className="flex flex-col items-center">
+        <span className="text-[12px] font-mono font-bold text-neutral-200 leading-none">{sensorTiltDeg}°</span>
+        <span className="text-[7px] text-neutral-600 uppercase tracking-wide mt-0.5">Tilt</span>
+      </div>
+
+      {/* Divider */}
+      <div className="w-px h-7 bg-[rgba(255,255,255,0.06)]" />
+
+      {/* FPS */}
+      <div className="flex flex-col items-center">
+        <span className="text-[12px] font-mono font-bold text-neutral-200 leading-none">
+          {isConnected ? diagnostics.avgFps.toFixed(1) : '—'}
+        </span>
+        <span className="text-[7px] text-neutral-600 uppercase tracking-wide mt-0.5">FPS</span>
+      </div>
+
+      {/* Divider */}
+      <div className="w-px h-7 bg-[rgba(255,255,255,0.06)]" />
+
+      {/* Errors */}
+      <div className="flex flex-col items-center">
+        <span
+          className="text-[12px] font-mono font-bold leading-none"
+          style={{ color: totalErrors > 0 ? '#f59e0b' : '#10b981' }}
+        >
+          {isConnected ? totalErrors : '—'}
+        </span>
+        <span className="text-[7px] text-neutral-600 uppercase tracking-wide mt-0.5">Errors</span>
+      </div>
+    </div>
+  );
+}
+
 // ── Main Component ───────────────────────────────────────────────────────────
 
 export default function DashboardTab({
   zones, zoneStates, vitals, driveMode,
-  onTriggerCalibration, isCalibrating
+  onTriggerCalibration, isCalibrating,
+  connectionStatus, transportType, isSimulationMode,
+  configName, sensorTiltDeg, diagnostics,
+  darkMode = true,
 }: DashboardTabProps) {
   // Dynamically find the driver zone — avoid hardcoded Zone 0
   const driverZone = zones.find(z => z.seatLabel.toLowerCase().includes('driver'));
@@ -328,44 +522,140 @@ export default function DashboardTab({
   const totalOccupied = Object.values(zoneStates).filter(z => z.occupied).length;
 
   return (
-    <div className="flex-1 overflow-y-auto px-3 py-3 space-y-3 select-none">
+    <div className="flex-1 overflow-y-auto px-3 pt-3 pb-12 space-y-3 select-none">
 
-      {/* ── Status Bar ─────────────────────────────────────────────── */}
-      <div className="p-3.5 rounded-2xl flex items-center justify-between"
-        style={{ background: 'linear-gradient(135deg,#0d111a,#111520)', border: '1px solid rgba(255,255,255,0.07)' }}>
-        <div>
-          <h2 className="text-[13px] font-semibold text-neutral-200">
-            {isCalibrating ? 'Calibrating…' : 'Continuous Monitoring'}
-          </h2>
-          <p className="text-[10px] text-neutral-500 mt-0.5 flex items-center gap-1.5">
-            <span className={`w-1.5 h-1.5 rounded-full ${isCalibrating ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500'}`} />
-            {isCalibrating ? 'Scanning ambient baseline' : `${totalOccupied} of ${zones.length} seats occupied`}
-          </p>
+      {/* ── System Health Card ──────────────────────────────────────── */}
+      <SystemHealthCard
+        connectionStatus={connectionStatus}
+        transportType={transportType}
+        isSimulationMode={isSimulationMode}
+        configName={configName}
+        sensorTiltDeg={sensorTiltDeg}
+        diagnostics={diagnostics}
+        darkMode={darkMode}
+      />
+
+      {/* ── Status Bar + Calibration ─────────────────────────────────── */}
+      <div
+        className="rounded-2xl overflow-hidden"
+        style={{
+          background: darkMode ? 'linear-gradient(135deg,#0d111a,#111520)' : 'linear-gradient(135deg,#ffffff,#f1f5f9)',
+          border: darkMode ? '1px solid rgba(255,255,255,0.07)' : '1px solid rgba(0,0,0,0.08)'
+        }}
+      >
+        {/* Top row */}
+        <div className="p-3.5 flex items-center justify-between">
+          <div>
+            <h2 className="text-[13px] font-semibold text-neutral-200">
+              {isCalibrating ? 'Calibrating Baseline…' : 'Continuous Monitoring'}
+            </h2>
+            <p className="text-[10px] text-neutral-500 mt-0.5 flex items-center gap-1.5">
+              <span className={`w-1.5 h-1.5 rounded-full ${isCalibrating ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500'}`} />
+              {isCalibrating ? 'Sampling ambient radar environment' : `${totalOccupied} of ${zones.length} seats occupied`}
+            </p>
+          </div>
+          {/* Calibration ring indicator */}
+          {isCalibrating ? (
+            <div className="relative w-10 h-10 flex items-center justify-center flex-shrink-0">
+              <svg className="w-10 h-10 -rotate-90" viewBox="0 0 40 40">
+                <circle cx="20" cy="20" r="16" fill="none" stroke="rgba(245,158,11,0.12)" strokeWidth="3" />
+                <circle
+                  cx="20" cy="20" r="16" fill="none"
+                  stroke="#f59e0b" strokeWidth="3"
+                  strokeLinecap="round"
+                  strokeDasharray="100"
+                  strokeDashoffset="25"
+                  className="calib-ring-pulse"
+                />
+              </svg>
+              <Target className="w-4 h-4 text-amber-400 absolute animate-spin" style={{ animationDuration: '2s' }} />
+            </div>
+          ) : (
+            <button
+              onClick={onTriggerCalibration}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-[10px] font-semibold transition-all border active:scale-95 ${
+                darkMode
+                  ? 'bg-[#1a1d28] text-neutral-300 border-[rgba(255,255,255,0.10)]'
+                  : 'bg-white text-neutral-700 border-[rgba(0,0,0,0.12)]'
+              }`}
+            >
+              <Target className="w-3.5 h-3.5" />
+              Reset Baseline
+            </button>
+          )}
         </div>
-        <button
-          onClick={onTriggerCalibration}
-          disabled={isCalibrating}
-          className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-[10px] font-semibold transition-all border ${
-            isCalibrating
-              ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
-              : 'bg-[#1a1d28] text-neutral-300 border-[rgba(255,255,255,0.10)] active:scale-95 hover:border-sky-500/30'
-          }`}
-        >
-          <Target className={`w-3.5 h-3.5 ${isCalibrating ? 'animate-spin' : ''}`} />
-          {isCalibrating ? 'Calibrating' : 'Reset Baseline'}
-        </button>
+
+        {/* Calibration progress strip */}
+        {isCalibrating && (
+          <div
+            className="mx-3.5 mb-3 p-2.5 rounded-xl flex items-center gap-3"
+            style={{ background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.14)' }}
+          >
+            <div className="flex-1 h-[3px] bg-[rgba(255,255,255,0.06)] rounded-full overflow-hidden">
+              <div
+                className="h-full rounded-full"
+                style={{
+                  background: 'linear-gradient(90deg,#d97706,#f59e0b)',
+                  width: '60%',
+                  animation: 'calibProgress 3s ease-in-out infinite alternate',
+                }}
+              />
+            </div>
+            <span className="text-[9px] text-amber-500 font-semibold uppercase tracking-wider flex-shrink-0">
+              Sampling…
+            </span>
+          </div>
+        )}
       </div>
 
-      {/* ── Vehicle Cabin Layout ────────────────────────────────────── */}
-      <div className="rounded-2xl overflow-hidden" style={{ background: 'linear-gradient(160deg,#0d111a,#0a0e17)', border: '1px solid rgba(255,255,255,0.07)' }}>
 
-        {/* Header */}
-        <div className="flex items-center justify-between px-4 pt-4 pb-2">
-          <h3 className="text-[11px] font-semibold text-neutral-400 uppercase tracking-wider">Cabin Occupancy</h3>
-          <div className="flex items-center gap-3 text-[8px] text-neutral-500">
-            <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-sm bg-blue-600 inline-block" /> Adult</span>
-            <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-sm bg-amber-600 inline-block" /> Child</span>
-            <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-sm bg-[#1a1d24] border border-neutral-700 inline-block" /> Empty</span>
+      {/* ── Vehicle Cabin Layout (Premium) ─────────────────────────── */}
+      {/* ── Cabin Occupancy Grid ────────────────────────────────────── */}
+      <div
+        className="rounded-2xl overflow-hidden relative"
+        style={{
+          background: darkMode ? 'linear-gradient(160deg,#060b18 0%,#080e1c 40%,#050810 100%)' : 'linear-gradient(160deg,#ffffff 0%,#f8fafc 40%,#f1f5f9 100%)',
+          border: darkMode ? '1px solid rgba(14,165,233,0.14)' : '1px solid rgba(14,165,233,0.22)',
+          boxShadow: darkMode ? '0 8px 32px rgba(0,0,0,0.6), inset 0 1px 0 rgba(14,165,233,0.07)' : '0 8px 32px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.8)',
+        }}
+      >
+        {/* Subtle corner glow */}
+        <div
+          className="absolute top-0 right-0 w-32 h-32 pointer-events-none"
+          style={{ background: 'radial-gradient(circle at top right, rgba(14,165,233,0.06) 0%, transparent 70%)' }}
+        />
+        <div
+          className="absolute bottom-0 left-0 w-24 h-24 pointer-events-none"
+          style={{ background: 'radial-gradient(circle at bottom left, rgba(59,130,246,0.04) 0%, transparent 70%)' }}
+        />
+
+        {/* Premium Header */}
+        <div className="flex items-center justify-between px-4 pt-4 pb-2 relative z-10">
+          <div className="flex items-center gap-2">
+            <div className="w-1 h-4 rounded-full" style={{ background: 'linear-gradient(180deg,#0ea5e9,#3b82f6)' }} />
+            <h3 className="text-[11px] font-bold text-neutral-200 uppercase tracking-widest">Cabin Occupancy</h3>
+            {/* Live count badge */}
+            <div
+              className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[8px] font-bold"
+              style={{ background: 'rgba(14,165,233,0.12)', border: '1px solid rgba(14,165,233,0.22)', color: '#38bdf8' }}
+            >
+              <span className="w-1 h-1 rounded-full bg-sky-400" style={{ animation: 'ping-dot 1.4s ease-in-out infinite' }} />
+              {totalOccupied}/{zones.length}
+            </div>
+          </div>
+          <div className="flex items-center gap-2.5 text-[8px] text-neutral-600">
+            <span className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-blue-500 inline-block" style={{ boxShadow: '0 0 4px rgba(59,130,246,0.6)' }} />
+              Adult
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-amber-500 inline-block" style={{ boxShadow: '0 0 4px rgba(245,158,11,0.6)' }} />
+              Child
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-[#1a1d24] border border-neutral-700 inline-block" />
+              Empty
+            </span>
           </div>
         </div>
 
@@ -373,10 +663,11 @@ export default function DashboardTab({
         <div className="relative px-3 pb-5">
           {/* Car silhouette */}
           <div className="absolute inset-0 flex items-center justify-center">
-            <div className="w-[140px] h-full max-h-[320px]">
+            <div className="w-[150px] h-full max-h-[340px]">
               <CarSilhouette isLHD={isLHD} />
             </div>
           </div>
+
 
           {/* Direction labels */}
           <div className="flex items-center gap-1.5 justify-center mb-3">
@@ -395,6 +686,7 @@ export default function DashboardTab({
                   label={z.seatLabel}
                   isDriver={z.seatLabel.toLowerCase().includes('driver')}
                   animDelay={i * 80}
+                  darkMode={darkMode}
                 />
               ))}
             </div>
@@ -413,7 +705,7 @@ export default function DashboardTab({
           {middleRow.length > 0 && (
             <div className="flex items-start justify-around mb-4">
               {middleRow.map((z, i) => (
-                <SeatCard key={z.id} state={getZoneState(z.id)} label={z.seatLabel} animDelay={150 + i * 80} />
+                <SeatCard key={z.id} state={getZoneState(z.id)} label={z.seatLabel} animDelay={150 + i * 80} darkMode={darkMode} />
               ))}
             </div>
           )}
@@ -428,7 +720,7 @@ export default function DashboardTab({
               </div>
               <div className="flex items-start justify-around">
                 {backRow.map((z, i) => (
-                  <SeatCard key={z.id} state={getZoneState(z.id)} label={z.seatLabel} animDelay={280 + i * 80} />
+                  <SeatCard key={z.id} state={getZoneState(z.id)} label={z.seatLabel} animDelay={280 + i * 80} darkMode={darkMode} />
                 ))}
               </div>
             </>

@@ -10,6 +10,9 @@ android {
 apply from: "../capacitor-cordova-android-plugins/cordova.variables.gradle"
 dependencies {
     implementation project(':adeunis-capacitor-serial')
+    implementation project(':capacitor-community-keep-awake')
+    implementation project(':capacitor-haptics')
+    implementation project(':capacitor-local-notifications')
 
 }
 

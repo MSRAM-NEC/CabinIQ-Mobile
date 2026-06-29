@@ -22,10 +22,12 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import AndroidFrame from './components/AndroidFrame';
 import DashboardTab from './components/DashboardTab';
 import inCabinLogo from './assets/InCabin.png';
+import mistralLogo from './assets/mistral-logo.png';
 import Radar3DTab from './components/Radar3DTab';
 import AnalyticsTab from './components/AnalyticsTab';
 import SettingsTab from './components/SettingsTab';
 import TerminalTab from './components/TerminalTab';
+import HelpTab from './components/HelpTab';
 import {
   DriveMode, ConnectionStatus, ZoneState, VitalSigns,
   RawPacketLog, AlgParams, Point3D, TransportType,
@@ -42,10 +44,65 @@ import { networkService } from './utils/networkService';
 import { RADAR_CONFIGS, DEFAULT_CONFIG_ID, getConfigById, cleanConfigText } from './utils/radarConfigs';
 import {
   LayoutGrid, Box, BarChart3, Sliders, Terminal,
-  AlertTriangle, CheckCircle, Info, Usb, Wifi, Cpu
+  AlertTriangle, CheckCircle, Info, Usb, Wifi, Cpu, HelpCircle
 } from 'lucide-react';
+import { Haptics, ImpactStyle } from '@capacitor/haptics';
+import { LocalNotifications } from '@capacitor/local-notifications';
+import { KeepAwake } from '@capacitor-community/keep-awake';
 
-type TabId    = 'dashboard' | 'radar' | 'analytics' | 'settings' | 'terminal';
+// ── Web Audio API sound alert synthesizer ───────────────────────────────────
+const playSoundAlert = (type: 'info' | 'warning' | 'critical') => {
+  try {
+    const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioContext) return;
+    const ctx = new AudioContext();
+    
+    if (type === 'critical') {
+      const playBeep = (time: number, freq: number, duration: number) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(freq, time);
+        gain.gain.setValueAtTime(0.12, time);
+        gain.gain.exponentialRampToValueAtTime(0.001, time + duration);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(time);
+        osc.stop(time + duration);
+      };
+      playBeep(ctx.currentTime, 880, 0.15);
+      playBeep(ctx.currentTime + 0.2, 880, 0.15);
+    } else if (type === 'warning') {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(587.33, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(293.66, ctx.currentTime + 0.3);
+      gain.gain.setValueAtTime(0.15, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.3);
+    } else {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(523.25, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(1046.5, ctx.currentTime + 0.12);
+      gain.gain.setValueAtTime(0.1, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.12);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.12);
+    }
+  } catch (e) {
+    console.warn('Web Audio not supported or blocked:', e);
+  }
+};
+
+type TabId    = 'dashboard' | 'radar' | 'analytics' | 'settings' | 'terminal' | 'help';
 type ScenarioId = 'empty' | 'driver' | 'family' | 'baby';
 
 // Max items for bounded collections
@@ -79,6 +136,99 @@ export default function App() {
   // ── Algorithm State ─────────────────────────────────────────────────
   const [algParams, setAlgParams] = useState<AlgParams>(DEFAULT_ALG_PARAMS);
   const [isCalibrating, setIsCalibrating] = useState<boolean>(false);
+
+  // ── App Preferences State ───────────────────────────────────────────
+  const [hapticsOn, setHapticsOn] = useState<boolean>(() => localStorage.getItem('hapticsOn') !== 'false');
+  const [soundOn, setSoundOn] = useState<boolean>(() => localStorage.getItem('soundOn') === 'true');
+  const [notificationsOn, setNotificationsOn] = useState<boolean>(() => localStorage.getItem('notificationsOn') !== 'false');
+  const [darkMode, setDarkMode] = useState<boolean>(() => localStorage.getItem('darkMode') !== 'false');
+  const [keepScreenOn, setKeepScreenOn] = useState<boolean>(() => localStorage.getItem('keepScreenOn') !== 'false');
+  const [alertOnEmpty, setAlertOnEmpty] = useState<boolean>(() => localStorage.getItem('alertOnEmpty') !== 'false');
+  const [units, setUnits] = useState<'metric' | 'imperial'>(() => (localStorage.getItem('units') as 'metric' | 'imperial') || 'metric');
+
+  // Persistence Effects
+  useEffect(() => { localStorage.setItem('hapticsOn', String(hapticsOn)); }, [hapticsOn]);
+  useEffect(() => { localStorage.setItem('soundOn', String(soundOn)); }, [soundOn]);
+  useEffect(() => { localStorage.setItem('notificationsOn', String(notificationsOn)); }, [notificationsOn]);
+  useEffect(() => { localStorage.setItem('darkMode', String(darkMode)); }, [darkMode]);
+  useEffect(() => { localStorage.setItem('keepScreenOn', String(keepScreenOn)); }, [keepScreenOn]);
+  useEffect(() => { localStorage.setItem('alertOnEmpty', String(alertOnEmpty)); }, [alertOnEmpty]);
+  useEffect(() => { localStorage.setItem('units', units); }, [units]);
+
+  // Keep Awake API Hook
+  useEffect(() => {
+    const applyKeepAwake = async () => {
+      try {
+        if (keepScreenOn) {
+          await KeepAwake.keepAwake();
+          console.log('[CabinIQ] Screen keep-awake enabled.');
+        } else {
+          await KeepAwake.allowSleep();
+          console.log('[CabinIQ] Screen keep-awake disabled.');
+        }
+      } catch (e) {
+        console.warn('KeepAwake API not available:', e);
+      }
+    };
+    applyKeepAwake();
+  }, [keepScreenOn]);
+
+  // Local Notifications Permission Request
+  useEffect(() => {
+    if (notificationsOn) {
+      const checkAndReq = async () => {
+        try {
+          const perm = await LocalNotifications.checkPermissions();
+          if (perm.display !== 'granted') {
+            await LocalNotifications.requestPermissions();
+          }
+        } catch (e) {
+          console.warn('LocalNotifications not supported or denied:', e);
+        }
+      };
+      checkAndReq();
+    }
+  }, [notificationsOn]);
+
+  // Stable Refs to avoid stale closure issues in callbacks
+  const hapticsOnRef = useRef(hapticsOn);
+  useEffect(() => { hapticsOnRef.current = hapticsOn; }, [hapticsOn]);
+  const soundOnRef = useRef(soundOn);
+  useEffect(() => { soundOnRef.current = soundOn; }, [soundOn]);
+  const notificationsOnRef = useRef(notificationsOn);
+  useEffect(() => { notificationsOnRef.current = notificationsOn; }, [notificationsOn]);
+  const alertOnEmptyRef = useRef(alertOnEmpty);
+  useEffect(() => { alertOnEmptyRef.current = alertOnEmpty; }, [alertOnEmpty]);
+
+  // Haptic Feedback trigger helper
+  const triggerHapticFeedback = useCallback(async (type: 'light' | 'medium' | 'heavy' = 'medium') => {
+    if (!hapticsOnRef.current) return;
+    try {
+      const style = type === 'heavy' ? ImpactStyle.Heavy : type === 'light' ? ImpactStyle.Light : ImpactStyle.Medium;
+      await Haptics.impact({ style });
+    } catch (e) {
+      console.warn('Haptics not supported:', e);
+    }
+  }, []);
+
+  // System Notification dispatcher helper
+  const sendSystemNotification = useCallback(async (title: string, body: string) => {
+    if (!notificationsOnRef.current) return;
+    try {
+      await LocalNotifications.schedule({
+        notifications: [
+          {
+            id: Math.floor(Math.random() * 100000),
+            title,
+            body,
+            schedule: { at: new Date(Date.now() + 100) },
+          }
+        ]
+      });
+    } catch (e) {
+      console.warn('Failed to schedule local notification:', e);
+    }
+  }, []);
 
   // Derive sensor tilt from active config (used for Z-axis correction in parseSerializedFrame)
   const sensorTiltDeg = React.useMemo(() => parseSensorTiltFromConfig(radarConfig), [radarConfig]);
@@ -227,7 +377,17 @@ export default function App() {
     notificationTimer.current = setTimeout(() => {
       setNotification(prev => ({ ...prev, show: false }));
     }, 4000);
-  }, []);
+
+    // Play synthesized sound alert if enabled
+    if (soundOnRef.current) {
+      playSoundAlert(type === 'warning' ? 'warning' : 'info');
+    }
+
+    // Schedule local notification if enabled
+    if (notificationsOnRef.current) {
+      sendSystemNotification('CabinIQ Alert', msg);
+    }
+  }, [sendSystemNotification]);
 
   const getScenarioOccupiers = useCallback(() => {
     const sc = scenarioRef.current;
@@ -355,11 +515,38 @@ export default function App() {
         parsedPoints, prev, algParamsRef.current, baselinesRef.current, zonesRef.current
       );
 
+      // Child-Left Alert logic:
+      if (alertOnEmptyRef.current) {
+        const driverZone = zonesRef.current.find(z => z.seatLabel === 'Driver');
+        if (driverZone && prev[driverZone.id]?.occupied && !next[driverZone.id]?.occupied) {
+          const childPresent = zonesRef.current.some(z => {
+            if (z.id === driverZone.id) return false;
+            const zState = next[z.id];
+            return zState && zState.occupied && zState.classification === 'child';
+          });
+          
+          if (childPresent) {
+            setCriticalAlert({
+              title: 'CHILD LEFT BEHIND',
+              message: 'Driver has vacated the vehicle, but a child is still detected in the cabin!'
+            });
+            if (soundOnRef.current) {
+              playSoundAlert('critical');
+            }
+            triggerHapticFeedback('heavy');
+            sendSystemNotification('CRITICAL SAFETY ALERT', 'Unattended child left behind in vehicle!');
+          }
+        }
+      }
+
       // Detect transitions → log + notify
       zonesRef.current.forEach(zone => {
         const prevZ = prev[zone.id];
         const nextZ = next[zone.id];
         if (prevZ && nextZ && prevZ.occupied !== nextZ.occupied) {
+          // Trigger haptic feedback
+          triggerHapticFeedback('medium');
+
           const action = nextZ.occupied
             ? `${nextZ.classification === 'child' ? 'Child' : 'Adult'} detected`
             : 'Vacated';
@@ -369,6 +556,9 @@ export default function App() {
 
           if (scenarioRef.current === 'baby' && nextZ.occupied && nextZ.classification === 'child') {
             setCriticalAlert({ title: 'SAFETY WARNING', message: 'Unattended Child Detected in Vehicle!' });
+            if (soundOnRef.current) {
+              playSoundAlert('critical');
+            }
           } else {
             triggerNotification(
               `${zone.seatLabel}: ${nextZ.occupied ? 'Occupied' : 'Vacated'}`,
@@ -647,6 +837,7 @@ export default function App() {
 
   return (
     <AndroidFrame>
+      <div className={`flex-1 w-full overflow-hidden flex flex-col transition-colors duration-300 ${darkMode ? 'bg-[#070c16]' : 'light-theme bg-[#f8fafc] text-[#1e293b]'}`}>
 
       {/* ── Loading / Splash Screen ────────────────────────────────── */}
       {isLoading && (
@@ -674,6 +865,22 @@ export default function App() {
               <div className="loading-progress-bar" style={{ width: `${loadingProgress}%` }} />
             </div>
             <p className="loading-status text-[#6a7c99]">{loadingStatus}</p>
+
+            {/* Mistral Solutions partner strip */}
+            <div className="loading-partner-strip">
+              <div className="loading-partner-divider">
+                <div className="loading-partner-divider-line" />
+                <span className="loading-partner-label">Hardware by</span>
+                <div className="loading-partner-divider-line" />
+              </div>
+              <img
+                src={mistralLogo}
+                alt="Mistral Solutions"
+                className="h-[18px] w-auto object-contain"
+                style={{ filter: 'brightness(1.05) saturate(0.85) opacity(0.75)' }}
+              />
+            </div>
+
           </div>
         </div>
       )}
@@ -729,36 +936,78 @@ export default function App() {
       )}
 
       {/* ── Header ───────────────────────────────────────────────────── */}
-      <header className="px-4 pt-3 pb-3 border-b border-[rgba(255,255,255,0.05)] flex flex-col gap-2.5 relative z-40" style={{ background: 'linear-gradient(180deg,#070a10 0%,#060810 100%)' }}>
-        <div className="flex justify-between items-center">
-          <div className="flex items-center gap-2.5">
-            <img src={inCabinLogo} alt="CabinIQ Logo" className="h-[36px] w-auto object-contain" />
+      <header
+        className={`px-3 pt-2.5 pb-2.5 border-b relative z-40 ${darkMode ? 'border-[rgba(255,255,255,0.06)]' : 'border-[rgba(0,0,0,0.08)]'}`}
+        style={{ background: darkMode ? 'linear-gradient(180deg,#070c15 0%,#060810 100%)' : 'linear-gradient(180deg,#ffffff 0%,#f1f5f9 100%)' }}
+      >
+        <div className="flex items-center justify-between gap-2">
+
+          {/* ── Left: CabinIQ logo + title ── */}
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {/* Round-cornered logo */}
+            <div
+              className="flex-shrink-0 rounded-xl overflow-hidden"
+              style={{
+                width: 40, height: 40,
+                border: '1.5px solid rgba(14,165,233,0.25)',
+                boxShadow: '0 0 10px rgba(14,165,233,0.15)',
+                background: '#070c16',
+              }}
+            >
+              <img src={inCabinLogo} alt="CabinIQ" className="w-full h-full object-cover" />
+            </div>
+
+            {/* Title + tagline */}
             <div>
-              <h1 className="text-[16px] font-extrabold text-white leading-none">
-                Cabin<span className="text-sky-400 font-extrabold">IQ</span>
+              <h1 className={`text-[15px] font-extrabold leading-none tracking-tight ${darkMode ? 'text-white' : 'text-neutral-900'}`}>
+                Cabin<span className="text-sky-400">IQ</span>
               </h1>
-              <span className="text-[10px] text-neutral-600 font-medium leading-none mt-1 block">
-                In-Cabin Radar Intelligence
-              </span>
+              <p className={`text-[8px] font-medium leading-none mt-[3px] tracking-wide ${darkMode ? 'text-neutral-500' : 'text-neutral-500'}`}>
+                An InCabin Monitoring System
+              </p>
             </div>
           </div>
 
-          {/* Connection indicator with transport type */}
-          <div className="flex items-center gap-2">
-            {/* Data-active pulse (blinks when receiving frames) */}
+          {/* ── Centre: Powered by Mistral ── */}
+          <div className="flex flex-col items-center gap-[3px] flex-1 min-w-0">
+            <span className={`text-[6.5px] uppercase tracking-[1.6px] font-semibold leading-none ${darkMode ? 'text-neutral-600' : 'text-neutral-500'}`}>
+              Powered by
+            </span>
+            <div
+              className="flex items-center justify-center px-2 py-[3px] rounded-lg"
+              style={{
+                background: 'rgba(226,168,75,0.07)',
+                border: '1px solid rgba(226,168,75,0.20)',
+              }}
+            >
+              <img
+                src={mistralLogo}
+                alt="Mistral Solutions"
+                className="h-[14px] w-auto object-contain"
+                style={{ filter: 'brightness(1.05) saturate(0.9)' }}
+              />
+            </div>
+          </div>
+
+          {/* ── Right: connection indicator ── */}
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            {/* Data-active bars */}
             {connectionStatus === 'connected' && (
-              <div className="flex items-center gap-1 mr-0.5">
-                <span className="w-1 h-4 rounded-full bg-sky-500/50" style={{ animation: 'breathe 0.9s ease-in-out infinite', animationDelay: '0ms' }} />
-                <span className="w-1 h-3 rounded-full bg-sky-500/70" style={{ animation: 'breathe 0.9s ease-in-out infinite', animationDelay: '0.15s' }} />
-                <span className="w-1 h-4 rounded-full bg-sky-500/50" style={{ animation: 'breathe 0.9s ease-in-out infinite', animationDelay: '0.30s' }} />
+              <div className="flex items-center gap-0.5">
+                <span className="w-[3px] h-3 rounded-full bg-sky-500/50" style={{ animation: 'breathe 0.9s ease-in-out infinite', animationDelay: '0ms' }} />
+                <span className="w-[3px] h-2 rounded-full bg-sky-500/70" style={{ animation: 'breathe 0.9s ease-in-out infinite', animationDelay: '0.15s' }} />
+                <span className="w-[3px] h-3 rounded-full bg-sky-500/50" style={{ animation: 'breathe 0.9s ease-in-out infinite', animationDelay: '0.30s' }} />
               </div>
             )}
+            {/* Status pill */}
             <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-[10px] font-semibold uppercase tracking-wider ${
               connectionStatus === 'connected'
                 ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
                 : connectionStatus === 'scanning'
                 ? 'bg-amber-500/10 border-amber-500/20 text-amber-400'
-                : 'bg-[rgba(255,255,255,0.03)] border-[rgba(255,255,255,0.05)] text-neutral-600'
+                : darkMode
+                ? 'bg-[rgba(255,255,255,0.03)] border-[rgba(255,255,255,0.05)] text-neutral-600'
+                : 'bg-[rgba(0,0,0,0.03)] border-[rgba(0,0,0,0.05)] text-neutral-500'
             }`}>
               <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
                 connectionStatus === 'connected' ? 'bg-emerald-500'
@@ -781,7 +1030,7 @@ export default function App() {
       </header>
 
       {/* ── Tab Content ──────────────────────────────────────────────── */}
-      <div className="flex-grow overflow-hidden flex flex-col mb-[72px]">
+      <div className="flex-grow overflow-hidden flex flex-col">
         {activeTab === 'dashboard' && (
           <DashboardTab
             zones={zones}
@@ -790,10 +1039,18 @@ export default function App() {
             driveMode={driveMode}
             onTriggerCalibration={handleTriggerCalibration}
             isCalibrating={isCalibrating}
+            connectionStatus={connectionStatus}
+            transportType={transportType}
+            isSimulationMode={isSimulationMode}
+            sensorTiltDeg={sensorTiltDeg}
+            diagnostics={diagnostics}
+            configName={getConfigById(selectedConfigId).label}
+            darkMode={darkMode}
           />
         )}
+
         {activeTab === 'radar' && (
-          <Radar3DTab points={points} zoneStates={zoneStates} zones={zones} />
+          <Radar3DTab points={points} zoneStates={zoneStates} zones={zones} darkMode={darkMode} />
         )}
         {activeTab === 'analytics' && (
           <AnalyticsTab
@@ -805,6 +1062,7 @@ export default function App() {
             pointDensityHistory={pointDensityHistory}
             packetLossCount={packetLossCount}
             totalFrames={totalFrames}
+            darkMode={darkMode}
           />
         )}
         {activeTab === 'settings' && (
@@ -832,59 +1090,99 @@ export default function App() {
             }}
             scenario={scenario}
             onScenarioChange={selectScenario}
+            hapticsOn={hapticsOn}
+            setHapticsOn={setHapticsOn}
+            soundOn={soundOn}
+            setSoundOn={setSoundOn}
+            notificationsOn={notificationsOn}
+            setNotificationsOn={setNotificationsOn}
+            darkMode={darkMode}
+            setDarkMode={setDarkMode}
+            keepScreenOn={keepScreenOn}
+            setKeepScreenOn={setKeepScreenOn}
+            alertOnEmpty={alertOnEmpty}
+            setAlertOnEmpty={setAlertOnEmpty}
+            units={units}
+            setUnits={setUnits}
           />
         )}
         {activeTab === 'terminal' && (
-          <TerminalTab packetLogs={packetLogs} nativeLogs={nativeLogs} />
+          <TerminalTab packetLogs={packetLogs} nativeLogs={nativeLogs} darkMode={darkMode} />
+        )}
+        {activeTab === 'help' && (
+          <HelpTab
+            diagnostics={diagnostics}
+            connectionStatus={connectionStatus}
+            selectedConfigId={selectedConfigId}
+            sensorTiltDeg={sensorTiltDeg}
+            framesReceived={diagnostics.framesReceived}
+            parseErrors={diagnostics.parseErrors}
+            crcErrors={diagnostics.crcErrors}
+            appVersion="1.0.0"
+            darkMode={darkMode}
+          />
         )}
       </div>
 
       {/* ── Bottom Navigation ────────────────────────────────────────── */}
-      {/* Gradient separator above nav */}
-      <div className="fixed bottom-[72px] left-0 right-0 h-6 pointer-events-none z-40" style={{ background: 'linear-gradient(to top, #060810 0%, transparent 100%)' }} />
-      <nav className="fixed bottom-0 left-0 right-0 h-[72px] backdrop-blur-md border-t border-[rgba(255,255,255,0.05)] flex justify-around items-center px-1 select-none z-50 pb-safe" style={{ background: 'rgba(6,8,16,0.96)' }}>
-        {([
-          { id: 'dashboard' as TabId, icon: LayoutGrid, label: 'Cabin'     },
-          { id: 'radar'     as TabId, icon: Box,        label: '3D View'   },
-          { id: 'analytics' as TabId, icon: BarChart3,  label: 'Analytics' },
-          { id: 'settings'  as TabId, icon: Sliders,    label: 'Settings'  },
-          { id: 'terminal'  as TabId, icon: Terminal,    label: 'Terminal'  },
-        ]).map(tab => {
-          const isActive = activeTab === tab.id;
-          const Icon = tab.icon;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className="relative flex flex-col items-center justify-center gap-1 h-full flex-1 transition-all active:scale-90 min-w-[56px]"
-              aria-label={tab.label}
-            >
-              {/* Active pill gradient indicator */}
-              {isActive && (
-                <div
-                  className="absolute top-0 left-1/2 -translate-x-1/2 h-[2px] w-8 rounded-b-full"
-                  style={{ background: 'linear-gradient(90deg, #0284c7, #38bdf8, #0284c7)' }}
-                />
-              )}
-              <div className={`p-1.5 rounded-xl transition-all duration-200 ${
-                isActive
-                  ? 'text-sky-400'
-                  : 'text-neutral-700'
-              }`}
-                style={isActive ? { background: 'linear-gradient(135deg, rgba(14,165,233,0.12), rgba(14,165,233,0.06))' } : {}}
+      <div className="relative flex-shrink-0">
+        {/* Gradient separator above nav */}
+        <div className="absolute bottom-full left-0 right-0 h-6 pointer-events-none z-40" style={{ background: darkMode ? 'linear-gradient(to top, #060810 0%, transparent 100%)' : 'linear-gradient(to top, #f1f5f9 0%, transparent 100%)' }} />
+        <nav className="w-full backdrop-blur-md border-t flex justify-around items-center px-1 select-none z-50 pb-safe" style={{ height: 'calc(72px + env(safe-area-inset-bottom, 0px))', background: darkMode ? 'rgba(6,8,16,0.96)' : 'rgba(255,255,255,0.96)', borderTop: darkMode ? '1px solid rgba(255,255,255,0.05)' : '1px solid rgba(0,0,0,0.08)' }}>
+          {([
+            { id: 'dashboard' as TabId, icon: LayoutGrid,  label: 'Cabin'     },
+            { id: 'radar'     as TabId, icon: Box,          label: '3D View'   },
+            { id: 'analytics' as TabId, icon: BarChart3,    label: 'Analytics' },
+            { id: 'settings'  as TabId, icon: Sliders,      label: 'Settings'  },
+            { id: 'terminal'  as TabId, icon: Terminal,     label: 'Terminal'  },
+            { id: 'help'      as TabId, icon: HelpCircle,   label: 'Help'      },
+          ]).map(tab => {
+            const isActive = activeTab === tab.id;
+            const Icon = tab.icon;
+            const isHelp = tab.id === 'help';
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className="relative flex flex-col items-center justify-center gap-1 h-full flex-1 transition-all active:scale-90 min-w-[44px]"
+                aria-label={tab.label}
               >
-                <Icon className="w-5 h-5" />
-              </div>
-              <span className={`text-[9px] font-semibold uppercase tracking-wider transition-colors duration-200 ${
-                isActive ? 'text-sky-400' : 'text-neutral-700'
-              }`}>
-                {tab.label}
-              </span>
-            </button>
-          );
-        })}
-      </nav>
-
+                {/* Active pill gradient indicator */}
+                {isActive && (
+                  <div
+                    className="absolute top-0 left-1/2 -translate-x-1/2 h-[2px] w-7 rounded-b-full"
+                    style={{ background: isHelp
+                      ? 'linear-gradient(90deg, #e2a84b, #f0c060, #e2a84b)'
+                      : 'linear-gradient(90deg, #0284c7, #38bdf8, #0284c7)'
+                    }}
+                  />
+                )}
+                <div
+                  className={`p-1.5 rounded-xl transition-all duration-200 ${
+                    isActive ? '' : darkMode ? 'text-neutral-700' : 'text-neutral-400'
+                  }`}
+                  style={isActive ? {
+                    background: isHelp
+                      ? 'rgba(226,168,75,0.10)'
+                      : 'linear-gradient(135deg, rgba(14,165,233,0.12), rgba(14,165,233,0.06))',
+                    color: isHelp ? '#e2a84b' : '#38bdf8',
+                  } : {}}
+                >
+                  <Icon className="w-[18px] h-[18px]" />
+                </div>
+                <span className={`text-[8px] font-semibold uppercase tracking-wider transition-colors duration-200 ${
+                  isActive
+                    ? isHelp ? 'text-[#e2a84b]' : 'text-sky-400'
+                    : darkMode ? 'text-neutral-700' : 'text-neutral-400'
+                }`}>
+                  {tab.label}
+                </span>
+              </button>
+            );
+          })}
+        </nav>
+      </div>
+      </div>
     </AndroidFrame>
   );
 }

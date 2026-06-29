@@ -24,6 +24,7 @@ interface AnalyticsTabProps {
   pointDensityHistory: ChartDataPoint[];
   packetLossCount: number;
   totalFrames: number;
+  darkMode?: boolean;
 }
 
 // ── Zone color themes (must match Radar3DTab palette) ────────────────────────
@@ -214,7 +215,7 @@ function EventEntry({ log, index }: { log: string; index: number; key?: string }
 export default function AnalyticsTab({
   zones, zoneStates, historyLog,
   snrHistory, fpsHistory, pointDensityHistory,
-  packetLossCount, totalFrames
+  packetLossCount, totalFrames, darkMode = true
 }: AnalyticsTabProps) {
 
   const packetLossRate = totalFrames > 0
@@ -222,7 +223,7 @@ export default function AnalyticsTab({
     : '0.00';
 
   return (
-    <div className="h-full overflow-y-auto pb-[90px] p-3 space-y-3 select-none">
+    <div className="h-full overflow-y-auto pb-[90px] p-3 space-y-3 select-none" style={{ background: darkMode ? undefined : '#f8fafc' }}>
 
       {/* Header */}
       <div className="flex items-center gap-2.5 mb-0.5">
@@ -230,8 +231,8 @@ export default function AnalyticsTab({
           <BarChart3 className="w-4 h-4 text-emerald-400" />
         </div>
         <div>
-          <h2 className="text-[14px] font-semibold text-neutral-200">System Analytics</h2>
-          <span className="text-[10px] text-neutral-500 font-medium">Real-time engineering metrics</span>
+          <h2 className={`text-[14px] font-semibold ${darkMode ? 'text-neutral-200' : 'text-neutral-800'}`}>System Analytics</h2>
+          <span className={`text-[10px] font-medium ${darkMode ? 'text-neutral-500' : 'text-neutral-500'}`}>Real-time engineering metrics</span>
         </div>
       </div>
 
@@ -242,7 +243,7 @@ export default function AnalyticsTab({
         <Sparkline data={pointDensityHistory} color="#8b5cf6" label="Point Density" unit="pts" />
 
         {/* Packet Loss static card */}
-        <div className="rounded-xl p-3 flex flex-col justify-between" style={{ background: 'linear-gradient(135deg,#0d111a,#111520)', border: '1px solid rgba(255,255,255,0.07)' }}>
+        <div className="rounded-xl p-3 flex flex-col justify-between" style={{ background: darkMode ? 'linear-gradient(135deg,#0d111a,#111520)' : 'linear-gradient(135deg,#ffffff,#f1f5f9)', border: darkMode ? '1px solid rgba(255,255,255,0.07)' : '1px solid rgba(0,0,0,0.08)' }}>
           <span className="text-[9px] font-semibold text-neutral-400 uppercase tracking-wider">Packet Loss</span>
           <div className="my-2">
             <span className={`text-[24px] font-mono font-bold leading-none ${packetLossCount > 0 ? 'text-amber-400' : 'text-emerald-400'}`}>
@@ -264,7 +265,7 @@ export default function AnalyticsTab({
       </div>
 
       {/* ── Occupancy Summary ─────────────────────────────────────── */}
-      <div className="rounded-xl p-3" style={{ background: 'linear-gradient(135deg,#0d111a,#111520)', border: '1px solid rgba(255,255,255,0.07)' }}>
+      <div className="rounded-xl p-3" style={{ background: darkMode ? 'linear-gradient(135deg,#0d111a,#111520)' : 'linear-gradient(135deg,#ffffff,#f1f5f9)', border: darkMode ? '1px solid rgba(255,255,255,0.07)' : '1px solid rgba(0,0,0,0.08)' }}>
         <span className="text-[9px] font-semibold text-neutral-400 uppercase tracking-wider block mb-2.5">Occupancy Status</span>
         <div className="space-y-2">
           {zones.map(zone => {
@@ -297,7 +298,7 @@ export default function AnalyticsTab({
       </div>
 
       {/* ── Event Stream ──────────────────────────────────────────── */}
-      <div className="rounded-xl p-3 min-h-[160px]" style={{ background: 'linear-gradient(135deg,#0d111a,#111520)', border: '1px solid rgba(255,255,255,0.07)' }}>
+      <div className="rounded-xl p-3 min-h-[160px]" style={{ background: darkMode ? 'linear-gradient(135deg,#0d111a,#111520)' : 'linear-gradient(135deg,#ffffff,#f1f5f9)', border: darkMode ? '1px solid rgba(255,255,255,0.07)' : '1px solid rgba(0,0,0,0.08)' }}>
         <div className="flex items-center justify-between mb-3">
           <span className="text-[9px] font-semibold text-neutral-400 uppercase tracking-wider flex items-center gap-1.5">
             <Clock className="w-3 h-3" /> Event Stream

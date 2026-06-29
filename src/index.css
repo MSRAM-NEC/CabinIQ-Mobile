@@ -410,3 +410,221 @@ select {
   from { width: 100%; }
   to   { width: 0%; }
 }
+
+/* ── Splash: Mistral Partner Strip ────────────────────────────────────────── */
+.loading-partner-strip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+}
+.loading-partner-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 180px;
+}
+.loading-partner-divider-line {
+  flex: 1;
+  height: 1px;
+  background: rgba(255,255,255,0.07);
+}
+.loading-partner-label {
+  font-size: 8px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.18);
+  font-weight: 500;
+  white-space: nowrap;
+}
+.loading-partner-name {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  background: linear-gradient(90deg, #e2a84b, #f0c060, #e2a84b);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ── Mistral Badge (header) ───────────────────────────────────────────────── */
+.mistral-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px 2px 5px;
+  border-radius: 999px;
+  background: rgba(226,168,75,0.08);
+  border: 1px solid rgba(226,168,75,0.22);
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  color: #e2a84b;
+  white-space: nowrap;
+}
+.mistral-badge-dot {
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: #e2a84b;
+  box-shadow: 0 0 6px rgba(226,168,75,0.6);
+}
+
+/* ── FAQ Accordion ────────────────────────────────────────────────────────── */
+.faq-item-body {
+  overflow: hidden;
+  max-height: 0;
+  transition: max-height 0.32s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.faq-item-body.open {
+  max-height: 400px;
+}
+
+/* ── Help tab Step Indicators ─────────────────────────────────────────────── */
+.help-step-number {
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #0284c7, #0ea5e9);
+  color: white;
+  font-size: 10px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 0 10px rgba(14,165,233,0.30);
+}
+
+/* ── Calibration Progress Ring ────────────────────────────────────────────── */
+@keyframes calibRingPulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.5; }
+}
+.calib-ring-pulse {
+  animation: calibRingPulse 1.2s ease-in-out infinite;
+}
+
+@keyframes calibProgress {
+  from { width: 20%; }
+  to   { width: 85%; }
+}
+
+@keyframes ping-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.4; transform: scale(1.6); }
+}
+
+/* ── System Health Card pulse dot ─────────────────────────────────────────── */
+@keyframes healthPing {
+  0%   { transform: scale(1); opacity: 1; }
+  70%  { transform: scale(2.2); opacity: 0; }
+  100% { transform: scale(1); opacity: 0; }
+}
+.health-ping::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: currentColor;
+  animation: healthPing 1.8s ease-out infinite;
+}
+
+/* ── Help tab hero banner gradient ───────────────────────────────────────── */
+.help-hero-banner {
+  background: linear-gradient(135deg, #0a0e17 0%, #0d1526 50%, #080c14 100%);
+  border: 1px solid rgba(226,168,75,0.18);
+  border-radius: 18px;
+  position: relative;
+  overflow: hidden;
+}
+.help-hero-banner::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 80% 20%, rgba(226,168,75,0.08) 0%, transparent 60%);
+  pointer-events: none;
+}
+
+/* ── Light Theme Overrides ────────────────────────────────────────────────── */
+.light-theme {
+  --color-surface-0:   #f8fafc;
+  --color-surface-1:   #ffffff;
+  --color-surface-2:   #f1f5f9;
+  --color-surface-3:   #e2e8f0;
+  
+  --color-border-subtle:  rgba(0,0,0,0.04);
+  --color-border-default: rgba(0,0,0,0.08);
+  --color-border-strong:  rgba(0,0,0,0.12);
+  
+  color-scheme: light;
+}
+
+/* Light mode specific element overrides for hardcoded gradients */
+.light-theme div[style*="linear-gradient"], 
+.light-theme form[style*="linear-gradient"],
+.light-theme header[style*="linear-gradient"],
+.light-theme section[style*="linear-gradient"] {
+  background: linear-gradient(135deg, #ffffff, #f1f5f9) !important;
+}
+
+.light-theme .help-hero-banner {
+  background: linear-gradient(135deg, #ffffff 0%, #f1f5f9 50%, #e2e8f0 100%) !important;
+  border-color: rgba(226,168,75,0.3) !important;
+}
+
+.light-theme .help-hero-banner::before {
+  background: radial-gradient(ellipse at 80% 20%, rgba(226,168,75,0.15) 0%, transparent 60%) !important;
+}
+
+/* Custom text and general style overrides for elements with hardcoded styles */
+.light-theme .text-neutral-500 {
+  color: #64748b !important;
+}
+.light-theme .text-neutral-400 {
+  color: #475569 !important;
+}
+.light-theme .text-neutral-300 {
+  color: #334155 !important;
+}
+.light-theme .text-neutral-200 {
+  color: #1e293b !important;
+}
+.light-theme .text-white {
+  color: #0f172a !important;
+}
+.light-theme input[type="range"] {
+  background: rgba(0,0,0,0.06);
+}
+
+/* Universal border override for light mode elements styled inline with transparent white borders */
+.light-theme div[style*="rgba(255,255,255,0.0"], 
+.light-theme div[style*="rgba(255,255,255,0.1"],
+.light-theme button[style*="rgba(255,255,255,0.0"],
+.light-theme button[style*="rgba(255,255,255,0.1"] {
+  border-color: rgba(0,0,0,0.08) !important;
+}
+
+.light-theme select {
+  color: #0f172a !important;
+}
+
+/* Dark lines/dividers overrides in light mode */
+.light-theme .bg-neutral-800,
+.light-theme .bg-neutral-850,
+.light-theme div[className*="bg-neutral-800"] {
+  background-color: rgba(0,0,0,0.08) !important;
+}
+
+.light-theme hr, 
+.light-theme .border-neutral-800 {
+  border-color: rgba(0,0,0,0.08) !important;
+}
+
+/* Scrollbar and custom selector dropdown overrides for settings config */
+.light-theme div[style*="background: '#111520'"] {
+  background: #ffffff !important;
+  border-color: rgba(139,92,246,0.3) !important;
+}
+
+
+

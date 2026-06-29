@@ -310,7 +310,7 @@ export function generateMockSerializedFrame(
  *   vehicle-frame zone bounding boxes (positive Z = above seat).
  */
 export function parseSerializedFrame(
-  buffer: ArrayBuffer,
+  buffer: ArrayBufferLike,
   isSimulation: boolean = false,
   sensorTiltDeg: number = 0
 ): {

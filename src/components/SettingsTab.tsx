@@ -20,9 +20,11 @@ import {
 import {
   Sliders, HardDrive, RefreshCw, Cpu, Settings,
   Usb, Wifi, Activity, AlertTriangle, CheckCircle, XCircle,
-  Search, Radio, FileText, ChevronDown
+  Search, Radio, FileText, ChevronDown,
+  Bell, Moon, Volume2, Vibrate, Shield, Smartphone, RotateCcw, Sun
 } from 'lucide-react';
 import { RADAR_CONFIGS, RadarConfigEntry } from '../utils/radarConfigs';
+import mistralLogo from '../assets/mistral-logo.png';
 
 interface SettingsTabProps {
   connectionStatus: ConnectionStatus;
@@ -45,6 +47,21 @@ interface SettingsTabProps {
   onConfigChange: (id: string) => void;
   scenario?: 'empty' | 'driver' | 'family' | 'baby';
   onScenarioChange?: (id: 'empty' | 'driver' | 'family' | 'baby') => void;
+
+  hapticsOn: boolean;
+  setHapticsOn: (b: boolean) => void;
+  soundOn: boolean;
+  setSoundOn: (b: boolean) => void;
+  notificationsOn: boolean;
+  setNotificationsOn: (b: boolean) => void;
+  darkMode: boolean;
+  setDarkMode: (b: boolean) => void;
+  keepScreenOn: boolean;
+  setKeepScreenOn: (b: boolean) => void;
+  alertOnEmpty: boolean;
+  setAlertOnEmpty: (b: boolean) => void;
+  units: 'metric' | 'imperial';
+  setUnits: (u: 'metric' | 'imperial') => void;
 }
 
 // ── Reusable section card with left accent border ────────────────────────────
@@ -137,11 +154,20 @@ export default function SettingsTab({
   onConfigChange,
   scenario = 'driver',
   onScenarioChange,
+
+  hapticsOn, setHapticsOn,
+  soundOn, setSoundOn,
+  notificationsOn, setNotificationsOn,
+  darkMode, setDarkMode,
+  keepScreenOn, setKeepScreenOn,
+  alertOnEmpty, setAlertOnEmpty,
+  units, setUnits,
 }: SettingsTabProps) {
 
   const [configDropdownOpen, setConfigDropdownOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const selectedConfig = RADAR_CONFIGS.find(c => c.id === selectedConfigId) ?? RADAR_CONFIGS[0];
+
 
   const filteredConfigs = RADAR_CONFIGS.filter(cfg =>
     cfg.label.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -234,13 +260,17 @@ export default function SettingsTab({
               <select
                 value={scenario}
                 onChange={e => onScenarioChange?.(e.target.value as any)}
-                className="w-full rounded-xl py-2.5 px-3 text-[11px] font-medium text-white focus:outline-none appearance-none"
-                style={{ background: '#161a23', border: '1px solid rgba(14,165,233,0.2)' }}
+                className="w-full rounded-xl py-2.5 px-3 text-[11px] font-medium focus:outline-none appearance-none"
+                style={{
+                  background: darkMode ? '#161a23' : '#f1f5f9',
+                  border: darkMode ? '1px solid rgba(14,165,233,0.2)' : '1px solid rgba(14,165,233,0.3)',
+                  color: darkMode ? '#ffffff' : '#0f172a'
+                }}
               >
-                <option value="driver">Driver Solo</option>
-                <option value="family">Family Occupancy</option>
-                <option value="baby">⚠ Abandoned Child</option>
-                <option value="empty">Empty Cabin</option>
+                <option value="driver" style={{ color: darkMode ? '#ffffff' : '#0f172a', background: darkMode ? '#161a23' : '#ffffff' }}>Driver Solo</option>
+                <option value="family" style={{ color: darkMode ? '#ffffff' : '#0f172a', background: darkMode ? '#161a23' : '#ffffff' }}>Family Occupancy</option>
+                <option value="baby" style={{ color: darkMode ? '#ffffff' : '#0f172a', background: darkMode ? '#161a23' : '#ffffff' }}>⚠ Abandoned Child</option>
+                <option value="empty" style={{ color: darkMode ? '#ffffff' : '#0f172a', background: darkMode ? '#161a23' : '#ffffff' }}>Empty Cabin</option>
               </select>
               <ChevronDown className="absolute right-3 inset-y-0 my-auto w-3.5 h-3.5 text-neutral-500 pointer-events-none" />
             </div>
@@ -341,7 +371,13 @@ export default function SettingsTab({
                 onClick={() => !isConnected && setConfigDropdownOpen(v => !v)}
                 disabled={isConnected}
                 className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl border text-left transition-all ${
-                  isConnected ? 'opacity-40' : configDropdownOpen ? 'bg-violet-500/10 border-violet-500/30' : 'bg-[rgba(255,255,255,0.04)] border-[rgba(255,255,255,0.08)] active:scale-[0.98]'
+                  isConnected
+                    ? 'opacity-40'
+                    : configDropdownOpen
+                    ? 'bg-violet-500/10 border-violet-500/30'
+                    : darkMode
+                    ? 'bg-[rgba(255,255,255,0.04)] border-[rgba(255,255,255,0.08)] active:scale-[0.98]'
+                    : 'bg-[rgba(0,0,0,0.03)] border-[rgba(0,0,0,0.08)] active:scale-[0.98]'
                 }`}
               >
                 <div className="flex flex-col min-w-0 pr-2">
@@ -352,9 +388,21 @@ export default function SettingsTab({
               </button>
 
               {configDropdownOpen && (
-                <div className="absolute left-0 right-0 top-full mt-1 z-50 rounded-xl overflow-hidden shadow-2xl max-h-[280px] overflow-y-auto" style={{ background: '#111520', border: '1px solid rgba(139,92,246,0.25)' }}>
+                <div
+                  className="absolute left-0 right-0 top-full mt-1 z-50 rounded-xl overflow-hidden shadow-2xl max-h-[280px] overflow-y-auto"
+                  style={{
+                    background: darkMode ? '#111520' : '#ffffff',
+                    border: '1px solid rgba(139,92,246,0.25)'
+                  }}
+                >
                   {/* Sticky Search Input */}
-                  <div className="sticky top-0 bg-[#111520] p-2 border-b border-[rgba(255,255,255,0.06)] z-10 flex items-center gap-2">
+                  <div
+                    className="sticky top-0 p-2 border-b z-10 flex items-center gap-2"
+                    style={{
+                      background: darkMode ? '#111520' : '#ffffff',
+                      borderBottom: darkMode ? '1px solid rgba(255,255,255,0.06)' : '1px solid rgba(0,0,0,0.06)'
+                    }}
+                  >
                     <Search className="w-3.5 h-3.5 text-violet-400" />
                     <input
                       type="text"
@@ -492,6 +540,108 @@ export default function SettingsTab({
           />
         </div>
       </SectionCard>
+
+      {/* ── App Preferences ─────────────────────────────────────────── */}
+      <SectionCard accent="#38bdf8">
+        <h3 className="text-[11px] font-semibold text-neutral-300 uppercase tracking-wider flex items-center gap-1.5">
+          <Smartphone className="w-3.5 h-3.5 text-sky-400" /> App Preferences
+        </h3>
+
+        {/* Toggle rows */}
+        {([
+          { icon: Vibrate,  label: 'Haptic Feedback',   sub: 'Vibration on occupancy change',        val: hapticsOn,        set: setHapticsOn       },
+          { icon: Volume2,  label: 'Sound Alerts',       sub: 'Audio cue on critical events',          val: soundOn,          set: setSoundOn         },
+          { icon: Bell,     label: 'Notifications',      sub: 'Background occupancy alerts',           val: notificationsOn,  set: setNotificationsOn },
+          { icon: Moon,     label: 'Dark Mode',          sub: 'Always-on dark automotive theme',       val: darkMode,         set: setDarkMode        },
+          { icon: Sun,      label: 'Keep Screen On',     sub: 'Prevent sleep while monitoring',        val: keepScreenOn,     set: setKeepScreenOn    },
+          { icon: Shield,   label: 'Child-Left Alert',   sub: 'Alert when cabin empties post-trip',    val: alertOnEmpty,     set: setAlertOnEmpty    },
+        ] as { icon: React.ElementType; label: string; sub: string; val: boolean; set: (b: boolean) => void }[]).map(({ icon: Icon, label, sub, val, set }) => (
+          <div
+            key={label}
+            className="flex items-center justify-between gap-3 py-2.5"
+            style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}
+          >
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div
+                className="p-1.5 rounded-lg flex-shrink-0 transition-all duration-200"
+                style={{ background: val ? 'rgba(14,165,233,0.12)' : 'rgba(255,255,255,0.04)' }}
+              >
+                <Icon className="w-3 h-3 transition-all duration-200" style={{ color: val ? '#38bdf8' : '#4b5563' }} />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[11px] font-semibold text-neutral-300 leading-none">{label}</p>
+                <p className="text-[9px] text-neutral-600 mt-0.5 leading-snug">{sub}</p>
+              </div>
+            </div>
+            {/* Toggle switch */}
+            <button
+              onClick={() => set(!val)}
+              className="flex-shrink-0 relative rounded-full transition-all duration-300 active:scale-95"
+              style={{
+                width: 40, height: 22,
+                background: val
+                  ? 'linear-gradient(90deg,#0284c7,#0ea5e9)'
+                  : 'rgba(255,255,255,0.08)',
+                border: val ? '1px solid rgba(14,165,233,0.4)' : '1px solid rgba(255,255,255,0.1)',
+              }}
+            >
+              <div
+                className="absolute top-[3px] rounded-full bg-white transition-all duration-300"
+                style={{
+                  width: 16, height: 16,
+                  left: val ? 21 : 3,
+                  boxShadow: val ? '0 0 6px rgba(14,165,233,0.5)' : '0 1px 3px rgba(0,0,0,0.4)',
+                }}
+              />
+            </button>
+          </div>
+        ))}
+
+        {/* Units picker */}
+        <div className="flex items-center justify-between gap-3 pt-1">
+          <div className="flex items-center gap-2.5">
+            <div className="p-1.5 rounded-lg" style={{ background: 'rgba(139,92,246,0.10)' }}>
+              <RotateCcw className="w-3 h-3 text-violet-400" />
+            </div>
+            <div>
+              <p className="text-[11px] font-semibold text-neutral-300 leading-none">Distance Units</p>
+              <p className="text-[9px] text-neutral-600 mt-0.5">Used in tilt &amp; zone display</p>
+            </div>
+          </div>
+          <div
+            className="flex rounded-xl overflow-hidden"
+            style={{ border: '1px solid rgba(255,255,255,0.08)' }}
+          >
+            {(['metric', 'imperial'] as const).map(u => (
+              <button
+                key={u}
+                onClick={() => setUnits(u)}
+                className="px-3 py-1.5 text-[9px] font-bold uppercase tracking-wider transition-all duration-200"
+                style={{
+                  background: units === u ? 'rgba(139,92,246,0.20)' : 'rgba(255,255,255,0.03)',
+                  color: units === u ? '#a78bfa' : '#4b5563',
+                  borderRight: u === 'metric' ? '1px solid rgba(255,255,255,0.07)' : undefined,
+                }}
+              >
+                {u === 'metric' ? 'm / cm' : 'ft / in'}
+              </button>
+            ))}
+          </div>
+        </div>
+      </SectionCard>
+
+      {/* ── Mistral Solutions Footer ──────────────────────────────────── */}
+      <div
+        className="rounded-2xl p-4 flex items-center justify-between gap-3"
+        style={{ background: 'rgba(226,168,75,0.05)', border: '1px solid rgba(226,168,75,0.14)' }}
+      >
+        <div>
+          <p className="text-[8px] text-neutral-600 uppercase tracking-wider mb-1">Hardware Partner</p>
+          <p className="text-[9px] text-neutral-500 leading-relaxed">CabinIQ v1.0.0 · AWR6843 · Capacitor</p>
+        </div>
+        <img src={mistralLogo} alt="Mistral Solutions" className="h-6 w-auto object-contain opacity-60" />
+      </div>
+
     </div>
   );
 }

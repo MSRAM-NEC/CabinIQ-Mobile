@@ -21,6 +21,7 @@ import {
 interface TerminalTabProps {
   packetLogs: RawPacketLog[];
   nativeLogs?: string[];
+  darkMode?: boolean;
 }
 
 // ── Hex highlight: color first 8 bytes (sync), next 8 (header), rest neutral ──
@@ -58,7 +59,7 @@ function ValidBadge({ valid, label }: { valid: boolean; label: string }) {
 
 // ── Main Component ────────────────────────────────────────────────────────────
 
-export default function TerminalTab({ packetLogs, nativeLogs = [] }: TerminalTabProps) {
+export default function TerminalTab({ packetLogs, nativeLogs = [], darkMode = true }: TerminalTabProps) {
   const endRef = useRef<HTMLDivElement | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
   const [showNative, setShowNative] = useState(true);
@@ -72,19 +73,19 @@ export default function TerminalTab({ packetLogs, nativeLogs = [] }: TerminalTab
   }, [packetLogs, autoScroll]);
 
   return (
-    <div className="flex-1 flex flex-col p-3 space-y-3 select-none overflow-hidden h-full" style={{ background: '#060810' }}>
+    <div className="flex-1 flex flex-col p-3 space-y-3 select-none overflow-hidden h-full" style={{ background: darkMode ? '#060810' : '#f8fafc' }}>
 
       {/* ── Native Plugin Log ──────────────────────────────────── */}
-      <div className="rounded-xl overflow-hidden flex-shrink-0" style={{ background: '#0a0d18', border: '1px solid rgba(14,165,233,0.12)' }}>
+      <div className="rounded-xl overflow-hidden flex-shrink-0" style={{ background: darkMode ? '#0a0d18' : '#ffffff', border: darkMode ? '1px solid rgba(14,165,233,0.12)' : '1px solid rgba(14,165,233,0.25)' }}>
         <button
           onClick={() => setShowNative(v => !v)}
           className="w-full flex items-center justify-between px-3 py-2"
-          style={{ borderBottom: showNative ? '1px solid rgba(14,165,233,0.08)' : 'none' }}
+          style={{ borderBottom: showNative ? (darkMode ? '1px solid rgba(14,165,233,0.08)' : '1px solid rgba(14,165,233,0.15)') : 'none' }}
         >
           <div className="flex items-center gap-1.5">
             <Radio className="w-3.5 h-3.5 text-sky-400" />
-            <span className="text-[10px] font-semibold text-sky-300 uppercase tracking-wider">Native Plugin Log</span>
-            <span className="text-[9px] font-mono text-sky-600 ml-1">({nativeLogs.length} msgs)</span>
+            <span className={`text-[10px] font-semibold uppercase tracking-wider ${darkMode ? 'text-sky-300' : 'text-sky-600'}`}>Native Plugin Log</span>
+            <span className={`text-[9px] font-mono ml-1 ${darkMode ? 'text-sky-600' : 'text-sky-500'}`}>({nativeLogs.length} msgs)</span>
           </div>
           <div className="flex items-center gap-2">
             {nativeLogs.length > 0 && (
@@ -97,7 +98,7 @@ export default function TerminalTab({ packetLogs, nativeLogs = [] }: TerminalTab
         {showNative && (
           <div className="max-h-[160px] overflow-y-auto p-2 space-y-0.5 font-mono text-[10px]">
             {nativeLogs.length === 0 ? (
-              <p className="text-neutral-600 py-2 text-center">No native logs yet — connect sensor to see output.</p>
+              <p className={`py-2 text-center ${darkMode ? 'text-neutral-600' : 'text-neutral-400'}`}>No native logs yet — connect sensor to see output.</p>
             ) : (
               nativeLogs.map((line, i) => {
                 const isError   = line.toLowerCase().includes('error') || line.toLowerCase().includes('fail');
@@ -124,10 +125,10 @@ export default function TerminalTab({ packetLogs, nativeLogs = [] }: TerminalTab
       </div>
 
       {/* ── Frame Feed Header ─────────────────────────────────── */}
-      <div className="flex items-center justify-between pb-1 flex-shrink-0" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+      <div className="flex items-center justify-between pb-1 flex-shrink-0" style={{ borderBottom: darkMode ? '1px solid rgba(255,255,255,0.05)' : '1px solid rgba(0,0,0,0.08)' }}>
         <div className="flex items-center gap-1.5">
           <Terminal className="w-3.5 h-3.5 text-emerald-400" />
-          <span className="text-[10px] font-semibold text-neutral-400 uppercase tracking-wider">AWR6843 Frame Feed</span>
+          <span className={`text-[10px] font-semibold uppercase tracking-wider ${darkMode ? 'text-neutral-400' : 'text-neutral-600'}`}>AWR6843 Frame Feed</span>
         </div>
         <div className="flex items-center gap-2">
           {/* Auto-scroll toggle */}
@@ -136,7 +137,7 @@ export default function TerminalTab({ packetLogs, nativeLogs = [] }: TerminalTab
             className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[8px] font-semibold uppercase tracking-wider transition-all border ${
               autoScroll
                 ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-                : 'bg-neutral-900 text-neutral-600 border-[rgba(255,255,255,0.06)]'
+                : darkMode ? 'bg-neutral-900 text-neutral-600 border-[rgba(255,255,255,0.06)]' : 'bg-neutral-100 text-neutral-500 border-[rgba(0,0,0,0.08)]'
             }`}
             title="Toggle auto-scroll"
           >
@@ -154,12 +155,12 @@ export default function TerminalTab({ packetLogs, nativeLogs = [] }: TerminalTab
       </div>
 
       {/* ── Packet List ──────────────────────────────────────────── */}
-      <div ref={listRef} className="flex-1 overflow-y-auto space-y-2 pr-1 font-mono text-[10px] leading-relaxed min-h-0">
+      <div ref={listRef} className="flex-1 overflow-y-auto space-y-2 pr-1 pb-10 font-mono text-[10px] leading-relaxed min-h-0">
         {packetLogs.length === 0 ? (
-          <div className="h-full flex flex-col items-center justify-center text-neutral-600 py-8 gap-2">
-            <Cpu className="w-7 h-7 text-neutral-800" />
+          <div className={`h-full flex flex-col items-center justify-center py-8 gap-2 ${darkMode ? 'text-neutral-600' : 'text-neutral-400'}`}>
+            <Cpu className={`w-7 h-7 ${darkMode ? 'text-neutral-800' : 'text-neutral-300'}`} />
             <span className="text-[11px]">Waiting for frames…</span>
-            <span className="text-[9px] text-neutral-700">Check Native Plugin Log above for connection status</span>
+            <span className={`text-[9px] ${darkMode ? 'text-neutral-700' : 'text-neutral-400'}`}>Check Native Plugin Log above for connection status</span>
           </div>
         ) : (
           packetLogs.map((log, idx) => {
@@ -169,8 +170,8 @@ export default function TerminalTab({ packetLogs, nativeLogs = [] }: TerminalTab
                 key={`pkt-${log.frameNum}-${log.timestamp}-${idx}`}
                 className="p-2.5 rounded-xl border space-y-2"
                 style={{
-                  background: hasError ? 'rgba(127,29,29,0.12)' : 'rgba(255,255,255,0.025)',
-                  border: `1px solid ${hasError ? 'rgba(239,68,68,0.15)' : 'rgba(255,255,255,0.05)'}`,
+                  background: hasError ? 'rgba(127,29,29,0.12)' : (darkMode ? 'rgba(255,255,255,0.025)' : 'rgba(0,0,0,0.02)'),
+                  border: `1px solid ${hasError ? 'rgba(239,68,68,0.15)' : (darkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.06)')}`,
                 }}
               >
                 {/* Frame header */}
@@ -183,7 +184,7 @@ export default function TerminalTab({ packetLogs, nativeLogs = [] }: TerminalTab
                 </div>
 
                 {/* Hex dump with highlighting */}
-                <div className="rounded-lg px-2 py-1.5" style={{ background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.03)' }}>
+                <div className="rounded-lg px-2 py-1.5" style={{ background: darkMode ? 'rgba(0,0,0,0.4)' : 'rgba(0,0,0,0.04)', border: darkMode ? '1px solid rgba(255,255,255,0.03)' : '1px solid rgba(0,0,0,0.06)' }}>
                   <HexDump hex={log.rawHexPrefix} />
                 </div>
 
